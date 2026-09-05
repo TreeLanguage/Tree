@@ -2,7 +2,6 @@
 #include <string_view>
 
 namespace tree {
-
 std::string_view to_string(TokenType type) noexcept {
   switch (type) {
   case TokenType::Float:
@@ -52,5 +51,4 @@ std::string_view to_string(TokenType type) noexcept {
   }
   return "Unknown";
 }
-
 } // namespace tree

@@ -6,7 +6,6 @@
 #include <utility>
 
 namespace tree {
-
 std::string_view to_string(Severity severity) noexcept {
   switch (severity) {
   case Severity::Error:
@@ -101,5 +100,4 @@ void DiagnosticEngine::print_all(std::ostream &os) const {
     print_one(os, *d);
   }
 }
-
 } // namespace tree

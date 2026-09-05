@@ -40,5 +40,4 @@ struct Token {
 };
 
 std::string_view to_string(TokenType type) noexcept;
-
 } // namespace tree

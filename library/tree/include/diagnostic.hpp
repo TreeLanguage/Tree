@@ -8,7 +8,6 @@
 #include <vector>
 
 namespace tree {
-
 enum class Severity { Error, Warning };
 
 std::string_view to_string(Severity severity) noexcept;
@@ -41,5 +40,4 @@ private:
   std::vector<std::string_view> lines_;
   std::vector<Diagnostic> diagnostics_;
 };
-
 } // namespace tree
