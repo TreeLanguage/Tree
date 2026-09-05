@@ -1,6 +1,7 @@
 #include "diagnostic.hpp"
 #include <algorithm>
 #include <compare>
+#include <iterator>
 #include <ostream>
 #include <utility>
 
