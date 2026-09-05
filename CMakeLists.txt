@@ -15,5 +15,8 @@ configure_file(
     @ONLY
 )
 
+enable_testing()
+
 add_subdirectory(library/tree)
 add_subdirectory(app)
+add_subdirectory(test)
