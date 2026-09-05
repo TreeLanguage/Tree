@@ -17,7 +17,7 @@ const std::unordered_map<std::string_view, tree::TokenType> keywords = {
     {"else", tree::TokenType::Else}};
 
 const std::unordered_map<std::string_view, tree::TokenType> double_ops = {
-    {"==", tree::TokenType::Equal}};
+    {"==", tree::TokenType::Equal}, {"->", tree::TokenType::Arrow}};
 
 const std::unordered_map<char, tree::TokenType> single_ops = {
     {'(', tree::TokenType::LeftParen}, {')', tree::TokenType::RightParen},
@@ -262,7 +262,7 @@ std::vector<Token> lexer(std::string_view source, DiagnosticEngine &diag) {
     }
 
     diag.report(Severity::Error,
-                Span(start_line, start_col, start_line, start_col),
+                Span(start_line, start_col, start_line, start_col + 1),
                 std::string("unexpected character '") + c + "'");
     st.advance_pos(1);
   }
