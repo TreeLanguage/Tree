@@ -10,7 +10,7 @@ set(TREE_CONFIG_DIR "${CMAKE_BINARY_DIR}/generated")
 include(GNUInstallDirs)
 
 configure_file(
-    "${CMAKE_SOURCE_DIR}/cmake/config.hpp.in"
+    "${CMAKE_SOURCE_DIR}/include/tree/config.hpp.in"
     "${TREE_CONFIG_DIR}/tree/config.hpp"
     @ONLY
 )

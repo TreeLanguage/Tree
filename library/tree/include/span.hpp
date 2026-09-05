@@ -3,6 +3,8 @@
 #include <compare>
 #include <ostream>
 
+namespace tree {
+
 struct Position {
   int line;
   int column;
@@ -36,3 +38,5 @@ struct Span {
 };
 
 std::ostream &operator<<(std::ostream &os, const Span &span);
+
+} // namespace tree

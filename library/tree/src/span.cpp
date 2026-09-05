@@ -1,5 +1,7 @@
 #include "span.hpp"
 
+namespace tree {
+
 std::ostream &operator<<(std::ostream &os, const Position &pos) {
   return os << pos.line << ':' << pos.column;
 }
@@ -16,3 +18,5 @@ Span Span::merge(const Span &other) const noexcept {
 std::ostream &operator<<(std::ostream &os, const Span &span) {
   return os << span.begin << '-' << span.end;
 }
+
+} // namespace tree
