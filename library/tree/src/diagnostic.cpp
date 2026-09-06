@@ -20,7 +20,7 @@ DiagnosticEngine::DiagnosticEngine(std::string filename, std::string source)
     : filename_(std::move(filename)), source_(std::move(source)) {
   std::string_view remaining = source_;
   while (true) {
-    size_t newline = remaining.find('\n');
+    const size_t newline = remaining.find('\n');
     if (newline == std::string_view::npos) {
       lines_.push_back(remaining);
       break;
@@ -32,7 +32,8 @@ DiagnosticEngine::DiagnosticEngine(std::string filename, std::string source)
 
 Diagnostic &DiagnosticEngine::report(Severity severity, Span span,
                                      std::string message) {
-  diagnostics_.push_back(Diagnostic{severity, span, std::move(message)});
+  diagnostics_.push_back(Diagnostic{
+      .severity = severity, .span = span, .message = std::move(message)});
   return diagnostics_.back();
 }
 
@@ -47,7 +48,7 @@ size_t DiagnosticEngine::count(Severity severity) const noexcept {
 }
 
 std::string_view DiagnosticEngine::line_text(int line_number) const {
-  size_t index = static_cast<size_t>(line_number - 1);
+  auto index = static_cast<size_t>(line_number - 1);
   if (index >= lines_.size()) {
     return {};
   }
@@ -57,8 +58,8 @@ std::string_view DiagnosticEngine::line_text(int line_number) const {
 void DiagnosticEngine::print_location(std::ostream &os, Span span) const {
   os << "  --> " << filename_ << ':' << span.begin << '\n';
 
-  std::string_view text = line_text(span.begin.line);
-  std::string line_number_str = std::to_string(span.begin.line);
+  const std::string_view text = line_text(span.begin.line);
+  const std::string line_number_str = std::to_string(span.begin.line);
 
   os << std::string(line_number_str.size(), ' ') << " |\n";
   os << line_number_str << " | " << text << '\n';
@@ -68,7 +69,7 @@ void DiagnosticEngine::print_location(std::ostream &os, Span span) const {
   for (; column < span.begin.column; ++column) {
     os << ' ';
   }
-  int underline_end = (span.end.line == span.begin.line)
+  const int underline_end = (span.end.line == span.begin.line)
                           ? span.end.column
                           : static_cast<int>(text.size()) + 1;
   for (; column < underline_end; ++column) {
@@ -88,13 +89,11 @@ void DiagnosticEngine::print_one(std::ostream &os,
 void DiagnosticEngine::print_all(std::ostream &os) const {
   std::vector<const Diagnostic *> sorted;
   sorted.reserve(diagnostics_.size());
-  std::transform(diagnostics_.begin(), diagnostics_.end(),
-                 std::back_inserter(sorted),
-                 [](const Diagnostic &d) { return &d; });
-  std::sort(sorted.begin(), sorted.end(),
-            [](const Diagnostic *a, const Diagnostic *b) {
-              return a->span.begin < b->span.begin;
-            });
+  std::ranges::transform(diagnostics_, std::back_inserter(sorted),
+                         [](const Diagnostic &d) { return &d; });
+  std::ranges::sort(sorted, [](const Diagnostic *a, const Diagnostic *b) {
+    return a->span.begin < b->span.begin;
+  });
 
   for (const Diagnostic *d : sorted) {
     print_one(os, *d);

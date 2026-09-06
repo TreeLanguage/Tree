@@ -2,13 +2,14 @@
 
 #include "span.hpp"
 #include <cstddef>
+#include <cstdint>
 #include <iosfwd>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace tree {
-enum class Severity { Error, Warning };
+enum class Severity : uint8_t { Error, Warning };
 
 std::string_view to_string(Severity severity) noexcept;
 
@@ -24,8 +25,8 @@ public:
 
   Diagnostic &report(Severity severity, Span span, std::string message);
 
-  bool has_errors() const noexcept;
-  size_t count(Severity severity) const noexcept;
+  [[nodiscard]] bool has_errors() const noexcept;
+  [[nodiscard]] size_t count(Severity severity) const noexcept;
 
   void print_all(std::ostream &os) const;
 

@@ -10,28 +10,30 @@ PatternPtr clone(const Pattern &p) {
   return match(
       p.value,
       [&](const WildcardPattern &) -> PatternPtr {
-        return std::make_unique<Pattern>(Pattern{WildcardPattern{}, p.span});
+        return std::make_unique<Pattern>(
+            Pattern{.value = WildcardPattern{}, .span = p.span});
       },
       [&](const VarPattern &v) -> PatternPtr {
-        return std::make_unique<Pattern>(Pattern{VarPattern{v.name}, p.span});
+        return std::make_unique<Pattern>(
+            Pattern{.value = VarPattern{v.name}, .span = p.span});
       },
       [&](const FloatPattern &f) -> PatternPtr {
         return std::make_unique<Pattern>(
-            Pattern{FloatPattern{f.value}, p.span});
+            Pattern{.value = FloatPattern{f.value}, .span = p.span});
       },
       [&](const StringPattern &s) -> PatternPtr {
         return std::make_unique<Pattern>(
-            Pattern{StringPattern{s.value}, p.span});
+            Pattern{.value = StringPattern{s.value}, .span = p.span});
       },
       [&](const TuplePattern &t) -> PatternPtr {
         std::vector<TuplePatternField> fields;
         fields.reserve(t.fields.size());
-        std::transform(t.fields.begin(), t.fields.end(),
-                       std::back_inserter(fields), [](const auto &f) {
-                         return TuplePatternField{f.name, clone(f.pattern)};
-                       });
+        std::ranges::transform(
+            t.fields, std::back_inserter(fields), [](const auto &f) {
+              return TuplePatternField{f.name, clone(f.pattern)};
+            });
         return std::make_unique<Pattern>(
-            Pattern{TuplePattern{std::move(fields)}, p.span});
+            Pattern{.value = TuplePattern{std::move(fields)}, .span = p.span});
       });
 }
 
@@ -41,75 +43,88 @@ ExprPtr clone(const Expr &e) {
   return match(
       e.value,
       [&](const FloatLiteral &f) -> ExprPtr {
-        return std::make_unique<Expr>(Expr{FloatLiteral{f.value}, e.span});
+        return std::make_unique<Expr>(
+            Expr{.value = FloatLiteral{f.value}, .span = e.span});
       },
       [&](const StringLiteral &s) -> ExprPtr {
-        return std::make_unique<Expr>(Expr{StringLiteral{s.value}, e.span});
+        return std::make_unique<Expr>(
+            Expr{.value = StringLiteral{s.value}, .span = e.span});
       },
       [&](const Identifier &id) -> ExprPtr {
-        return std::make_unique<Expr>(Expr{Identifier{id.name}, e.span});
+        return std::make_unique<Expr>(
+            Expr{.value = Identifier{id.name}, .span = e.span});
       },
       [&](const TupleExpr &t) -> ExprPtr {
         std::vector<TupleExprField> fields;
         fields.reserve(t.fields.size());
-        std::transform(t.fields.begin(), t.fields.end(),
-                       std::back_inserter(fields), [](const auto &f) {
-                         return TupleExprField{f.name, clone(f.value)};
-                       });
+        std::ranges::transform(t.fields, std::back_inserter(fields),
+                               [](const auto &f) {
+                                 return TupleExprField{f.name, clone(f.value)};
+                               });
         return std::make_unique<Expr>(
-            Expr{TupleExpr{std::move(fields)}, e.span});
+            Expr{.value = TupleExpr{std::move(fields)}, .span = e.span});
       },
       [&](const FieldAccess &f) -> ExprPtr {
         return std::make_unique<Expr>(
-            Expr{FieldAccess{clone(f.target), f.key}, e.span});
+            Expr{.value = FieldAccess{.target = clone(f.target), .key = f.key},
+                 .span = e.span});
       },
       [&](const Call &c) -> ExprPtr {
         std::vector<ExprPtr> args;
         args.reserve(c.args.size());
-        std::transform(c.args.begin(), c.args.end(), std::back_inserter(args),
-                       [](const auto &a) { return clone(a); });
-        return std::make_unique<Expr>(
-            Expr{Call{clone(c.callee), std::move(args)}, e.span});
+        std::ranges::transform(c.args, std::back_inserter(args),
+                               [](const auto &a) { return clone(a); });
+        return std::make_unique<Expr>(Expr{
+            .value = Call{.callee = clone(c.callee), .args = std::move(args)},
+            .span = e.span});
       },
       [&](const BinaryExpr &b) -> ExprPtr {
         return std::make_unique<Expr>(
-            Expr{BinaryExpr{b.op, clone(b.lhs), clone(b.rhs)}, e.span});
+            Expr{.value = BinaryExpr{.op = b.op,
+                                     .lhs = clone(b.lhs),
+                                     .rhs = clone(b.rhs)},
+                 .span = e.span});
       },
       [&](const Lambda &l) -> ExprPtr {
         std::vector<PatternPtr> params;
         params.reserve(l.params.size());
-        std::transform(l.params.begin(), l.params.end(),
-                       std::back_inserter(params),
-                       [](const auto &p) { return clone(p); });
-        return std::make_unique<Expr>(
-            Expr{Lambda{std::move(params), clone(l.body)}, e.span});
+        std::ranges::transform(l.params, std::back_inserter(params),
+                               [](const auto &p) { return clone(p); });
+        return std::make_unique<Expr>(Expr{
+            .value = Lambda{.params = std::move(params), .body = clone(l.body)},
+            .span = e.span});
       },
       [&](const IfExpr &i) -> ExprPtr {
-        return std::make_unique<Expr>(Expr{
-            IfExpr{clone(i.cond), clone(i.then_branch), clone(i.else_branch)},
-            e.span});
+        return std::make_unique<Expr>(
+            Expr{.value = IfExpr{.cond = clone(i.cond),
+                                 .then_branch = clone(i.then_branch),
+                                 .else_branch = clone(i.else_branch)},
+                 .span = e.span});
       },
       [&](const FunctionClause &f) -> ExprPtr {
         std::vector<PatternPtr> params;
         params.reserve(f.params.size());
-        std::transform(f.params.begin(), f.params.end(),
-                       std::back_inserter(params),
-                       [](const auto &p) { return clone(p); });
-        return std::make_unique<Expr>(Expr{
-            FunctionClause{f.name, std::move(params), clone(f.body)}, e.span});
+        std::ranges::transform(f.params, std::back_inserter(params),
+                               [](const auto &p) { return clone(p); });
+        return std::make_unique<Expr>(
+            Expr{.value = FunctionClause{.name = f.name,
+                                         .params = std::move(params),
+                                         .body = clone(f.body)},
+                 .span = e.span});
       },
       [&](const Assignment &a) -> ExprPtr {
         return std::make_unique<Expr>(
-            Expr{Assignment{clone(a.target), clone(a.value)}, e.span});
+            Expr{.value = Assignment{.target = clone(a.target),
+                                     .value = clone(a.value)},
+                 .span = e.span});
       });
 }
 
 Program clone(const Program &prog) {
   Program result;
   result.exprs.reserve(prog.exprs.size());
-  std::transform(prog.exprs.begin(), prog.exprs.end(),
-                 std::back_inserter(result.exprs),
-                 [](const auto &e) { return clone(e); });
+  std::ranges::transform(prog.exprs, std::back_inserter(result.exprs),
+                         [](const auto &e) { return clone(e); });
   return result;
 }
 
