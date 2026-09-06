@@ -1,8 +1,8 @@
 #pragma once
 
 #include "span.hpp"
+#include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
@@ -10,8 +10,17 @@
 #include <vector>
 
 namespace tree {
-struct Pattern;
-using PatternPtr = std::unique_ptr<Pattern>;
+
+struct PatternId {
+  uint32_t index = UINT32_MAX;
+  [[nodiscard]] bool valid() const { return index != UINT32_MAX; }
+  friend bool operator==(PatternId, PatternId) = default;
+};
+struct ExprId {
+  uint32_t index = UINT32_MAX;
+  [[nodiscard]] bool valid() const { return index != UINT32_MAX; }
+  friend bool operator==(ExprId, ExprId) = default;
+};
 
 struct WildcardPattern {};
 
@@ -29,7 +38,7 @@ struct StringPattern {
 
 struct TuplePatternField {
   std::optional<std::string> name;
-  PatternPtr pattern;
+  PatternId pattern;
 };
 
 struct TuplePattern {
@@ -42,18 +51,6 @@ struct Pattern {
       value;
   Span span;
 };
-
-template <typename T, typename... Args>
-PatternPtr make_pattern(Span span, Args &&...args) {
-  return std::make_unique<Pattern>(
-      Pattern{T{std::forward<Args>(args)...}, span});
-}
-
-PatternPtr clone(const Pattern &p);
-PatternPtr clone(const PatternPtr &p);
-
-struct Expr;
-using ExprPtr = std::unique_ptr<Expr>;
 
 struct FloatLiteral {
   double value;
@@ -69,7 +66,7 @@ struct Identifier {
 
 struct TupleExprField {
   std::optional<std::string> name;
-  ExprPtr value;
+  ExprId value;
 };
 
 struct TupleExpr {
@@ -79,51 +76,43 @@ struct TupleExpr {
 using FieldKey = std::variant<int64_t, std::string>;
 
 struct FieldAccess {
-  ExprPtr target;
+  ExprId target;
   FieldKey key;
 };
 
 struct Call {
-  ExprPtr callee;
-  std::vector<ExprPtr> args;
+  ExprId callee;
+  std::vector<ExprId> args;
 };
 
-enum class BinaryOp : uint8_t {
-  Add,
-  Sub,
-  Mul,
-  Div,
-  Mod,
-  Equal,
-  LessThan,
-};
+enum class BinaryOp : uint8_t { Add, Sub, Mul, Div, Mod, Equal, LessThan };
 
 struct BinaryExpr {
   BinaryOp op = {};
-  ExprPtr lhs;
-  ExprPtr rhs;
+  ExprId lhs;
+  ExprId rhs;
 };
 
 struct Lambda {
-  std::vector<PatternPtr> params;
-  ExprPtr body;
+  std::vector<PatternId> params;
+  ExprId body;
 };
 
 struct IfExpr {
-  ExprPtr cond;
-  ExprPtr then_branch;
-  ExprPtr else_branch;
+  ExprId cond;
+  ExprId then_branch;
+  ExprId else_branch;
 };
 
 struct FunctionClause {
   std::string name;
-  std::vector<PatternPtr> params;
-  ExprPtr body;
+  std::vector<PatternId> params;
+  ExprId body;
 };
 
 struct Assignment {
-  PatternPtr target;
-  ExprPtr value;
+  PatternId target;
+  ExprId value;
 };
 
 struct Expr {
@@ -133,16 +122,46 @@ struct Expr {
   Span span;
 };
 
-template <typename T, typename... Args>
-ExprPtr make_expr(Span span, Args &&...args) {
-  return std::make_unique<Expr>(Expr{T{std::forward<Args>(args)...}, span});
-}
+class Arena {
+public:
+  template <typename T, typename... Args>
+  ExprId make_expr(Span span, Args &&...args) {
+    exprs_.push_back(Expr{T{std::forward<Args>(args)...}, span});
+    return ExprId{static_cast<uint32_t>(exprs_.size() - 1)};
+  }
 
-ExprPtr clone(const Expr &e);
-ExprPtr clone(const ExprPtr &e);
+  template <typename T, typename... Args>
+  PatternId make_pattern(Span span, Args &&...args) {
+    patterns_.push_back(Pattern{T{std::forward<Args>(args)...}, span});
+    return PatternId{static_cast<uint32_t>(patterns_.size() - 1)};
+  }
+
+  [[nodiscard]] Expr &get(ExprId id) { return exprs_[id.index]; }
+  [[nodiscard]] const Expr &get(ExprId id) const { return exprs_[id.index]; }
+  [[nodiscard]] Pattern &get(PatternId id) { return patterns_[id.index]; }
+  [[nodiscard]] const Pattern &get(PatternId id) const {
+    return patterns_[id.index];
+  }
+
+  [[nodiscard]] size_t expr_count() const { return exprs_.size(); }
+  [[nodiscard]] size_t pattern_count() const { return patterns_.size(); }
+
+  void reserve(size_t expr_hint, size_t pattern_hint) {
+    exprs_.reserve(expr_hint);
+    patterns_.reserve(pattern_hint);
+  }
+
+  ExprId clone(ExprId id);
+  PatternId clone(PatternId id);
+
+private:
+  std::vector<Expr> exprs_;
+  std::vector<Pattern> patterns_;
+};
 
 struct Program {
-  std::vector<ExprPtr> exprs;
+  Arena arena;
+  std::vector<ExprId> exprs;
 };
 
 Program clone(const Program &prog);
@@ -157,4 +176,5 @@ decltype(auto) match(Variant &&v, Fs &&...fs) {
   return std::visit(Overloaded{std::forward<Fs>(fs)...},
                     std::forward<Variant>(v));
 }
+
 } // namespace tree

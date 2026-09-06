@@ -1,6 +1,6 @@
 # Arithmetic
 add(x, y) = x + y
-add(3, 4 # => 7
+add(3, 4) # => 7
 
 # Tuple construction
 pair = (1, 2)

@@ -4,119 +4,90 @@
 
 namespace tree {
 
-PatternPtr clone(const PatternPtr &p) { return p ? clone(*p) : nullptr; }
-
-PatternPtr clone(const Pattern &p) {
+PatternId Arena::clone(PatternId id) {
+  const Pattern &p = get(id);
   return match(
       p.value,
-      [&](const WildcardPattern &) -> PatternPtr {
-        return std::make_unique<Pattern>(
-            Pattern{.value = WildcardPattern{}, .span = p.span});
+      [&](const WildcardPattern &) {
+        return make_pattern<WildcardPattern>(p.span);
       },
-      [&](const VarPattern &v) -> PatternPtr {
-        return std::make_unique<Pattern>(
-            Pattern{.value = VarPattern{v.name}, .span = p.span});
+      [&](const VarPattern &v) {
+        return make_pattern<VarPattern>(p.span, v.name);
       },
-      [&](const FloatPattern &f) -> PatternPtr {
-        return std::make_unique<Pattern>(
-            Pattern{.value = FloatPattern{f.value}, .span = p.span});
+      [&](const FloatPattern &f) {
+        return make_pattern<FloatPattern>(p.span, f.value);
       },
-      [&](const StringPattern &s) -> PatternPtr {
-        return std::make_unique<Pattern>(
-            Pattern{.value = StringPattern{s.value}, .span = p.span});
+      [&](const StringPattern &s) {
+        return make_pattern<StringPattern>(p.span, s.value);
       },
-      [&](const TuplePattern &t) -> PatternPtr {
+      [&](const TuplePattern &t) {
         std::vector<TuplePatternField> fields;
         fields.reserve(t.fields.size());
         std::ranges::transform(
-            t.fields, std::back_inserter(fields), [](const auto &f) {
-              return TuplePatternField{f.name, clone(f.pattern)};
+            t.fields, std::back_inserter(fields), [&](const auto &f) {
+              return TuplePatternField{.name = f.name,
+                                       .pattern = clone(f.pattern)};
             });
-        return std::make_unique<Pattern>(
-            Pattern{.value = TuplePattern{std::move(fields)}, .span = p.span});
+        return make_pattern<TuplePattern>(p.span, std::move(fields));
       });
 }
 
-ExprPtr clone(const ExprPtr &e) { return e ? clone(*e) : nullptr; }
-
-ExprPtr clone(const Expr &e) {
+ExprId Arena::clone(ExprId id) {
+  const Expr &e = get(id);
   return match(
       e.value,
-      [&](const FloatLiteral &f) -> ExprPtr {
-        return std::make_unique<Expr>(
-            Expr{.value = FloatLiteral{f.value}, .span = e.span});
+      [&](const FloatLiteral &f) {
+        return make_expr<FloatLiteral>(e.span, f.value);
       },
-      [&](const StringLiteral &s) -> ExprPtr {
-        return std::make_unique<Expr>(
-            Expr{.value = StringLiteral{s.value}, .span = e.span});
+      [&](const StringLiteral &s) {
+        return make_expr<StringLiteral>(e.span, s.value);
       },
-      [&](const Identifier &id) -> ExprPtr {
-        return std::make_unique<Expr>(
-            Expr{.value = Identifier{id.name}, .span = e.span});
+      [&](const Identifier &i) {
+        return make_expr<Identifier>(e.span, i.name);
       },
-      [&](const TupleExpr &t) -> ExprPtr {
+      [&](const TupleExpr &t) {
         std::vector<TupleExprField> fields;
         fields.reserve(t.fields.size());
-        std::ranges::transform(t.fields, std::back_inserter(fields),
-                               [](const auto &f) {
-                                 return TupleExprField{f.name, clone(f.value)};
-                               });
-        return std::make_unique<Expr>(
-            Expr{.value = TupleExpr{std::move(fields)}, .span = e.span});
+        std::ranges::transform(
+            t.fields, std::back_inserter(fields), [&](const auto &f) {
+              return TupleExprField{.name = f.name, .value = clone(f.value)};
+            });
+        return make_expr<TupleExpr>(e.span, std::move(fields));
       },
-      [&](const FieldAccess &f) -> ExprPtr {
-        return std::make_unique<Expr>(
-            Expr{.value = FieldAccess{.target = clone(f.target), .key = f.key},
-                 .span = e.span});
+      [&](const FieldAccess &f) {
+        return make_expr<FieldAccess>(e.span, clone(f.target), f.key);
       },
-      [&](const Call &c) -> ExprPtr {
-        std::vector<ExprPtr> args;
+      [&](const Call &c) {
+        std::vector<ExprId> args;
         args.reserve(c.args.size());
         std::ranges::transform(c.args, std::back_inserter(args),
-                               [](const auto &a) { return clone(a); });
-        return std::make_unique<Expr>(Expr{
-            .value = Call{.callee = clone(c.callee), .args = std::move(args)},
-            .span = e.span});
+                               [&](auto a) { return clone(a); });
+        return make_expr<Call>(e.span, clone(c.callee), std::move(args));
       },
-      [&](const BinaryExpr &b) -> ExprPtr {
-        return std::make_unique<Expr>(
-            Expr{.value = BinaryExpr{.op = b.op,
-                                     .lhs = clone(b.lhs),
-                                     .rhs = clone(b.rhs)},
-                 .span = e.span});
+      [&](const BinaryExpr &b) {
+        return make_expr<BinaryExpr>(e.span, b.op, clone(b.lhs), clone(b.rhs));
       },
-      [&](const Lambda &l) -> ExprPtr {
-        std::vector<PatternPtr> params;
+      [&](const Lambda &l) {
+        std::vector<PatternId> params;
         params.reserve(l.params.size());
         std::ranges::transform(l.params, std::back_inserter(params),
-                               [](const auto &p) { return clone(p); });
-        return std::make_unique<Expr>(Expr{
-            .value = Lambda{.params = std::move(params), .body = clone(l.body)},
-            .span = e.span});
+                               [&](auto p) { return clone(p); });
+        return make_expr<Lambda>(e.span, std::move(params), clone(l.body));
       },
-      [&](const IfExpr &i) -> ExprPtr {
-        return std::make_unique<Expr>(
-            Expr{.value = IfExpr{.cond = clone(i.cond),
-                                 .then_branch = clone(i.then_branch),
-                                 .else_branch = clone(i.else_branch)},
-                 .span = e.span});
+      [&](const IfExpr &i) {
+        return make_expr<IfExpr>(e.span, clone(i.cond), clone(i.then_branch),
+                                 clone(i.else_branch));
       },
-      [&](const FunctionClause &f) -> ExprPtr {
-        std::vector<PatternPtr> params;
+      [&](const FunctionClause &f) {
+        std::vector<PatternId> params;
         params.reserve(f.params.size());
         std::ranges::transform(f.params, std::back_inserter(params),
-                               [](const auto &p) { return clone(p); });
-        return std::make_unique<Expr>(
-            Expr{.value = FunctionClause{.name = f.name,
-                                         .params = std::move(params),
-                                         .body = clone(f.body)},
-                 .span = e.span});
+                               [&](auto p) { return clone(p); });
+        return make_expr<FunctionClause>(e.span, f.name, std::move(params),
+                                         clone(f.body));
       },
-      [&](const Assignment &a) -> ExprPtr {
-        return std::make_unique<Expr>(
-            Expr{.value = Assignment{.target = clone(a.target),
-                                     .value = clone(a.value)},
-                 .span = e.span});
+      [&](const Assignment &a) {
+        return make_expr<Assignment>(e.span, clone(a.target), clone(a.value));
       });
 }
 
@@ -124,7 +95,7 @@ Program clone(const Program &prog) {
   Program result;
   result.exprs.reserve(prog.exprs.size());
   std::ranges::transform(prog.exprs, std::back_inserter(result.exprs),
-                         [](const auto &e) { return clone(e); });
+                         [&](auto id) { return result.arena.clone(id); });
   return result;
 }
 

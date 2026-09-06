@@ -1,4 +1,5 @@
 #include "parser.hpp"
+#include "ast.hpp"
 #include "diagnostic.hpp"
 #include "span.hpp"
 #include "token.hpp"
@@ -49,25 +50,37 @@ struct ParseAbort {};
 class Parser {
 public:
   Parser(std::vector<tree::Token> tokens, tree::DiagnosticEngine &diag)
-      : tokens_(std::move(tokens)), diag_(diag) {}
+      : tokens_(std::move(tokens)), diag_(diag) {
+    prog_.arena.reserve(tokens_.size(), tokens_.size() / 4);
+  }
 
   tree::Program parse_program() {
-    tree::Program prog;
     while (!check(tree::TokenType::Eof)) {
       const size_t start_pos = pos_;
       try {
-        prog.exprs.push_back(parse_top_level());
+        prog_.exprs.push_back(parse_top_level());
       } catch (const ParseAbort &) {
         synchronize(start_pos);
       }
     }
-    return prog;
+    return std::move(prog_);
   }
 
 private:
+  tree::Program prog_;
   std::vector<tree::Token> tokens_;
   tree::DiagnosticEngine &diag_;
   size_t pos_ = 0;
+
+  template <typename T, typename... Args>
+  tree::ExprId make_expr(tree::Span span, Args &&...args) {
+    return prog_.arena.make_expr<T>(span, std::forward<Args>(args)...);
+  }
+
+  template <typename T, typename... Args>
+  tree::PatternId make_pattern(tree::Span span, Args &&...args) {
+    return prog_.arena.make_pattern<T>(span, std::forward<Args>(args)...);
+  }
 
   [[nodiscard]] const tree::Token &peek(size_t offset = 0) const {
     const size_t idx = pos_ + offset;
@@ -130,133 +143,138 @@ private:
     }
   }
 
-  tree::PatternPtr expr_to_pattern(tree::ExprPtr expr) {
-    const tree::Span span = expr->span;
-    if (auto *lit = std::get_if<tree::FloatLiteral>(&expr->value)) {
+  tree::PatternId expr_to_pattern(tree::ExprId expr_id) {
+    const tree::Expr &expr = prog_.arena.get(expr_id);
+    const tree::Span span = expr.span;
+    if (const auto *lit = std::get_if<tree::FloatLiteral>(&expr.value)) {
       return make_pattern<tree::FloatPattern>(span, lit->value);
     }
-    if (auto *lit = std::get_if<tree::StringLiteral>(&expr->value)) {
+    if (const auto *lit = std::get_if<tree::StringLiteral>(&expr.value)) {
       return make_pattern<tree::StringPattern>(span, lit->value);
     }
-    if (auto *id = std::get_if<tree::Identifier>(&expr->value)) {
+    if (const auto *id = std::get_if<tree::Identifier>(&expr.value)) {
       if (id->name == "_") {
         return make_pattern<tree::WildcardPattern>(span);
       }
       return make_pattern<tree::VarPattern>(span, id->name);
     }
-    if (auto *tup = std::get_if<tree::TupleExpr>(&expr->value)) {
+    if (const auto *tup = std::get_if<tree::TupleExpr>(&expr.value)) {
       std::vector<tree::TuplePatternField> fields;
       fields.reserve(tup->fields.size());
-      std::ranges::transform(tup->fields, std::back_inserter(fields),
-                             [this](auto &f) {
-                               return tree::TuplePatternField{
-                                   f.name, expr_to_pattern(std::move(f.value))};
-                             });
+      std::ranges::transform(
+          tup->fields, std::back_inserter(fields), [this](auto &f) {
+            return tree::TuplePatternField{f.name, expr_to_pattern(f.value)};
+          });
       return make_pattern<tree::TuplePattern>(span, std::move(fields));
     }
     error(span, "invalid pattern");
   }
 
-  tree::ExprPtr parse_top_level() {
+  tree::ExprId parse_top_level() {
     const tree::Span start = peek().span;
-    tree::ExprPtr head = parse_postfix();
+    tree::ExprId head = parse_postfix();
 
     if (!match(tree::TokenType::Assign)) {
       return head;
     }
 
-    tree::ExprPtr body = parse_expr();
-    const tree::Span span{start.begin, body->span.end};
+    const tree::ExprId body = parse_expr();
+    const tree::Span span{start.begin, prog_.arena.get(body).span.end};
 
-    if (auto *call = std::get_if<tree::Call>(&head->value)) {
-      if (auto *callee_id =
-              std::get_if<tree::Identifier>(&call->callee->value)) {
-        std::vector<tree::PatternPtr> params;
-        params.reserve(call->args.size());
+    const tree::Expr &head_expr = prog_.arena.get(head);
+    if (const auto *call = std::get_if<tree::Call>(&head_expr.value)) {
+      const tree::Expr &callee_expr = prog_.arena.get(call->callee);
+      if (const auto *callee_id =
+              std::get_if<tree::Identifier>(&callee_expr.value)) {
+        std::string name = callee_id->name;
+        std::vector<tree::ExprId> args = call->args;
+        std::vector<tree::PatternId> params;
+        params.reserve(args.size());
         std::ranges::transform(
-            call->args, std::back_inserter(params),
-            [this](auto &arg) { return expr_to_pattern(std::move(arg)); });
-        return make_expr<tree::FunctionClause>(
-            span, callee_id->name, std::move(params), std::move(body));
+            args, std::back_inserter(params),
+            [this](const auto &arg) { return expr_to_pattern(arg); });
+        return make_expr<tree::FunctionClause>(span, std::move(name),
+                                               std::move(params), body);
       }
     }
 
-    return make_expr<tree::Assignment>(span, expr_to_pattern(std::move(head)),
-                                       std::move(body));
+    return make_expr<tree::Assignment>(span, expr_to_pattern(head), body);
   }
 
-  tree::ExprPtr parse_expr() { return parse_comparison(); }
+  tree::ExprId parse_expr() { return parse_comparison(); }
 
-  tree::ExprPtr parse_comparison() {
+  tree::ExprId parse_comparison() {
     return parse_binary_level(COMPARISON_OPS, &Parser::parse_additive);
   }
 
-  tree::ExprPtr parse_additive() {
+  tree::ExprId parse_additive() {
     return parse_binary_level(ADDITIVE_OPS, &Parser::parse_multiplicative);
   }
 
-  tree::ExprPtr parse_multiplicative() {
+  tree::ExprId parse_multiplicative() {
     return parse_binary_level(MULTIPLICATIVE_OPS, &Parser::parse_unary);
   }
 
   template <std::size_t N>
-  tree::ExprPtr parse_binary_level(
+  tree::ExprId parse_binary_level(
       const std::array<std::pair<tree::TokenType, tree::BinaryOp>, N> &ops,
-      tree::ExprPtr (Parser::*next)()) {
-    tree::ExprPtr lhs = (this->*next)();
+      tree::ExprId (Parser::*next)()) {
+    tree::ExprId lhs = (this->*next)();
     for (;;) {
       auto op = lookup_op(ops, peek().type);
       if (!op) {
         break;
       }
       advance();
-      tree::ExprPtr rhs = (this->*next)();
-      const tree::Span span{lhs->span.begin, rhs->span.end};
-      lhs = make_expr<tree::BinaryExpr>(span, *op, std::move(lhs),
-                                        std::move(rhs));
+      const tree::ExprId rhs = (this->*next)();
+      const tree::Span span{prog_.arena.get(lhs).span.begin,
+                            prog_.arena.get(rhs).span.end};
+      lhs = make_expr<tree::BinaryExpr>(span, *op, lhs, rhs);
     }
     return lhs;
   }
 
-  tree::ExprPtr parse_unary() {
+  tree::ExprId parse_unary() {
     if (check(tree::TokenType::Minus)) {
       const tree::Span start = peek().span;
       advance();
-      tree::ExprPtr operand = parse_unary();
-      const tree::Span span{start.begin, operand->span.end};
-      tree::ExprPtr zero = make_expr<tree::FloatLiteral>(start, 0.0);
-      return make_expr<tree::BinaryExpr>(span, tree::BinaryOp::Sub,
-                                         std::move(zero), std::move(operand));
+      const tree::ExprId operand = parse_unary();
+      const tree::Span span{start.begin, prog_.arena.get(operand).span.end};
+      const tree::ExprId zero = make_expr<tree::FloatLiteral>(start, 0.0);
+      return make_expr<tree::BinaryExpr>(span, tree::BinaryOp::Sub, zero,
+                                         operand);
     }
     return parse_postfix();
   }
 
-  tree::ExprPtr parse_postfix() {
-    tree::ExprPtr expr = parse_primary();
+  tree::ExprId parse_postfix() {
+    tree::ExprId expr = parse_primary();
     for (;;) {
       if (match(tree::TokenType::Dot)) {
         if (check(tree::TokenType::Float)) {
           const tree::Token idx_tok = advance();
-          const tree::Span span{expr->span.begin, idx_tok.span.end};
+          const tree::Span span{prog_.arena.get(expr).span.begin,
+                                idx_tok.span.end};
           const double f = idx_tok.float_value;
           if (f != std::floor(f) || f < 0) {
             error(idx_tok.span,
                   "tuple field index must be a non-negative integer");
           }
           auto idx = static_cast<int64_t>(f);
-          expr = make_expr<tree::FieldAccess>(span, std::move(expr),
-                                              tree::FieldKey{idx});
+          expr = make_expr<tree::FieldAccess>(span, expr, tree::FieldKey{idx});
         } else if (check(tree::TokenType::Identifier)) {
           tree::Token name_tok = advance();
-          const tree::Span span{expr->span.begin, name_tok.span.end};
+          const tree::Span span{prog_.arena.get(expr).span.begin,
+                                name_tok.span.end};
           expr = make_expr<tree::FieldAccess>(
-              span, std::move(expr), tree::FieldKey{name_tok.string_value});
+              span, expr, tree::FieldKey{name_tok.string_value});
         } else {
           error(peek().span, "expected field index or name after '.'");
         }
       } else if (check(tree::TokenType::LeftParen) &&
-                 peek().span.begin.line == expr->span.end.line) {
-        expr = parse_call(std::move(expr));
+                 peek().span.begin.line ==
+                     prog_.arena.get(expr).span.end.line) {
+        expr = parse_call(expr);
       } else {
         break;
       }
@@ -264,10 +282,10 @@ private:
     return expr;
   }
 
-  tree::ExprPtr parse_call(tree::ExprPtr callee) {
-    const tree::Span start = callee->span;
+  tree::ExprId parse_call(tree::ExprId callee) {
+    const tree::Span start = prog_.arena.get(callee).span;
     const tree::Token open = expect(tree::TokenType::LeftParen, "'('");
-    std::vector<tree::ExprPtr> args;
+    std::vector<tree::ExprId> args;
     if (!check(tree::TokenType::RightParen)) {
       args.push_back(parse_expr());
       while (match(tree::TokenType::Comma)) {
@@ -277,10 +295,10 @@ private:
     const tree::Token close =
         expect_close(tree::TokenType::RightParen, "')'", open.span, "'('");
     const tree::Span span{start.begin, close.span.end};
-    return make_expr<tree::Call>(span, std::move(callee), std::move(args));
+    return make_expr<tree::Call>(span, callee, std::move(args));
   }
 
-  tree::ExprPtr parse_primary() {
+  tree::ExprId parse_primary() {
     const tree::Token &t = peek();
     switch (t.type) {
     case tree::TokenType::Float:
@@ -303,7 +321,7 @@ private:
     }
   }
 
-  tree::ExprPtr parse_tuple_or_paren() {
+  tree::ExprId parse_tuple_or_paren() {
     const tree::Span start = peek().span;
     const tree::Token open = expect(tree::TokenType::LeftParen, "'('");
 
@@ -336,7 +354,7 @@ private:
         peek(1).type == tree::TokenType::Colon) {
       std::string name = advance().string_value;
       advance();
-      tree::ExprPtr value = parse_expr();
+      tree::ExprId value = parse_expr();
       return tree::TupleExprField{
           .name = std::optional<std::string>(std::move(name)),
           .value = std::move(value)};
@@ -344,11 +362,11 @@ private:
     return tree::TupleExprField{.name = std::nullopt, .value = parse_expr()};
   }
 
-  tree::ExprPtr parse_lambda() {
+  tree::ExprId parse_lambda() {
     const tree::Span start = peek().span;
     expect(tree::TokenType::Backslash, "'\\'");
 
-    std::vector<tree::PatternPtr> params;
+    std::vector<tree::PatternId> params;
 
     if (check(tree::TokenType::LeftParen)) {
       const tree::Token open = advance();
@@ -364,22 +382,21 @@ private:
     }
 
     expect(tree::TokenType::Arrow, "'->'");
-    tree::ExprPtr body = parse_expr();
-    const tree::Span span{start.begin, body->span.end};
-    return make_expr<tree::Lambda>(span, std::move(params), std::move(body));
+    const tree::ExprId body = parse_expr();
+    const tree::Span span{start.begin, prog_.arena.get(body).span.end};
+    return make_expr<tree::Lambda>(span, std::move(params), body);
   }
 
-  tree::ExprPtr parse_if() {
+  tree::ExprId parse_if() {
     const tree::Span start = peek().span;
     expect(tree::TokenType::If, "'if'");
-    tree::ExprPtr cond = parse_expr();
+    const tree::ExprId cond = parse_expr();
     expect(tree::TokenType::Then, "'then'");
-    tree::ExprPtr then_branch = parse_expr();
+    const tree::ExprId then_branch = parse_expr();
     expect(tree::TokenType::Else, "'else'");
-    tree::ExprPtr else_branch = parse_expr();
-    const tree::Span span{start.begin, else_branch->span.end};
-    return make_expr<tree::IfExpr>(
-        span, std::move(cond), std::move(then_branch), std::move(else_branch));
+    const tree::ExprId else_branch = parse_expr();
+    const tree::Span span{start.begin, prog_.arena.get(else_branch).span.end};
+    return make_expr<tree::IfExpr>(span, cond, then_branch, else_branch);
   }
 };
 } // namespace
