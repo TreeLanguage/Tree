@@ -64,14 +64,6 @@ TEST(float_literal) {
   CHECK_EQ(r.tokens[0].float_value, 3.14);
 }
 
-TEST(trailing_dot_without_digit_is_not_consumed) {
-  auto r = lex("1.");
-  CHECK_EQ(r.tokens.size(), static_cast<size_t>(3));
-  CHECK(r.tokens[0].type == TokenType::Float);
-  CHECK_EQ(r.tokens[0].float_value, 1.0);
-  CHECK(r.tokens[1].type == TokenType::Dot);
-}
-
 TEST(identifier) {
   auto r = lex("foo_bar1");
   CHECK_EQ(r.tokens.size(), static_cast<size_t>(2));
@@ -131,21 +123,20 @@ TEST(trailing_backslash_at_eof_reports_error) {
 }
 
 TEST(single_char_operators) {
-  auto r = lex("(),.:+-*/%=<\\");
-  CHECK_EQ(r.tokens.size(), static_cast<size_t>(14));
+  auto r = lex("(),:+-*/%=<\\");
+  CHECK_EQ(r.tokens.size(), static_cast<size_t>(13));
   CHECK(r.tokens[0].type == TokenType::LeftParen);
   CHECK(r.tokens[1].type == TokenType::RightParen);
   CHECK(r.tokens[2].type == TokenType::Comma);
-  CHECK(r.tokens[3].type == TokenType::Dot);
-  CHECK(r.tokens[4].type == TokenType::Colon);
-  CHECK(r.tokens[5].type == TokenType::Plus);
-  CHECK(r.tokens[6].type == TokenType::Minus);
-  CHECK(r.tokens[7].type == TokenType::Star);
-  CHECK(r.tokens[8].type == TokenType::Slash);
-  CHECK(r.tokens[9].type == TokenType::Percent);
-  CHECK(r.tokens[10].type == TokenType::Assign);
-  CHECK(r.tokens[11].type == TokenType::LessThan);
-  CHECK(r.tokens[12].type == TokenType::Backslash);
+  CHECK(r.tokens[3].type == TokenType::Colon);
+  CHECK(r.tokens[4].type == TokenType::Plus);
+  CHECK(r.tokens[5].type == TokenType::Minus);
+  CHECK(r.tokens[6].type == TokenType::Star);
+  CHECK(r.tokens[7].type == TokenType::Slash);
+  CHECK(r.tokens[8].type == TokenType::Percent);
+  CHECK(r.tokens[9].type == TokenType::Assign);
+  CHECK(r.tokens[10].type == TokenType::LessThan);
+  CHECK(r.tokens[11].type == TokenType::Backslash);
 }
 
 TEST(double_char_operator_equal) {

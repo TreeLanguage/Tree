@@ -3,8 +3,6 @@
 [![Cpp Standard](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B20)
 [![Tests status](https://img.shields.io/github/actions/workflow/status/TreeLanguage/Tree/ci.yml?branch=main&label=test)](https://github.com/TreeLanguage/Tree/actions/workflows/ci.yml)
 
-Tree is an interpreted [tuple-forward](#tuple-forward) programming language.
-
 ## Building from source
 
 ### Prerequisites
@@ -46,7 +44,3 @@ Run the test suite with:
 ```sh
 ctest --test-dir build --output-on-failure -C Debug
 ```
-
-## Tuple-forward
-
-Tree is described as **tuple-forward** because tuples are the primary, default way values are represented in the language. Nearly every construct in Tree is a tuple, the main exceptions are scalar values like functions and data types, which stand on their own. Everything else you work with, from simple groupings of data to larger composite structures, is fundamentally a tuple value.

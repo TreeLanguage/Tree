@@ -13,7 +13,6 @@ enum class TokenType : uint8_t {
   LeftParen,
   RightParen,
   Comma,
-  Dot,
   Colon,
   Assign,
   Equal,

@@ -1,24 +1,23 @@
 # Arithmetic
-add(x, y) = x + y
-add(3, 4) # => 7
+add((x, y)) = x + y
+add((3, 4)) # => 7
 
 # Tuple construction
 pair = (1, 2)
 triple = (1, 2, 3)
 
 # Access by position
-pair.0     # => 1
-pair.1     # => 2
-triple.2   # => 3
+(first, second) = pair
+first   # => 1
+second  # => 2
 
-# Destructuring
-(a, b) = pair
-a  # => 1
-b  # => 2
+(_, _, third) = triple
+third   # => 3
 
 # Named fields
 point = (x: 10, y: 20)
-point.x    # => 10
+(x: px, _) = point
+px  # => 10
 
 # Factorial
 factorial(0) = 1
@@ -41,16 +40,19 @@ sumList((1, (2, (3, (4, ())))))  # => 10
 
 # Person record
 person = (name: "Alice", age: 30, email: "alice@example.com")
-person.name    # => "Alice"
+(name: name, _) = person
+name  # => "Alice"
 
 # Destructure selectively
-(name: n, age: a) = person
+(name: n, age: a, _) = person
 n  # => "Alice"
 a  # => 30
 
 # Update pattern (immutable)
-older = (name: person.name, age: person.age + 1, email: person.email)
-older.age  # => 31
+(name: n, age: a, email: e, _) = person
+older = (name: n, age: a + 1, email: e)
+(age: olderAge, _) = older
+olderAge  # => 31
 
 # Function with record
 greet((name: n, _)) = "Hello, " + n
@@ -69,9 +71,12 @@ user = (
   )
 )
 
-user.address.city        # => "NYC"
-user.contact.email       # => "bob@example.com"
-user.contact.phone       # => "555-1234"
+(address: address, contact: contact, _) = user
+(city: city, _) = address
+(email: email, phone: phone, _) = contact
+city   # => "NYC"
+email  # => "bob@example.com"
+phone  # => "555-1234"
 
 # Deep destructuring
 (name: n, address: (city: c, _), _) = user
@@ -97,17 +102,6 @@ tree = (
 treeSum(()) = 0
 treeSum((value: v, left: l, right: r)) = v + treeSum(l) + treeSum(r)
 treeSum(tree)  # => 29
-
-# Find maximum
-# treeMax(()) = -999999
-# treeMax((value: v, left: l, right: r)) =
-#  max(v, max(treeMax(l), treeMax(r)))
-# treeMax(tree)  # => 8
-
-# Inorder traversal (list output)
-# inorder(()) = ()
-# inorder((value: v, left: l, right: r)) =
-#  append(inorder(l), (v, inorder(r)))
 
 # List: (head, tail)
 list = (1, (2, (3, (4, ()))))

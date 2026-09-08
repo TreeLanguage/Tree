@@ -16,8 +16,6 @@ std::string_view to_string(TokenType type) noexcept {
     return "RightParen";
   case TokenType::Comma:
     return "Comma";
-  case TokenType::Dot:
-    return "Dot";
   case TokenType::Colon:
     return "Colon";
   case TokenType::Assign:

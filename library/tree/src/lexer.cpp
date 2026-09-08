@@ -30,11 +30,10 @@ const std::unordered_map<std::string_view, tree::TokenType> &double_ops() {
   return MAP;
 }
 
-constexpr std::array<std::pair<char, tree::TokenType>, 13> SINGLE_OPS = {{
+constexpr std::array<std::pair<char, tree::TokenType>, 12> SINGLE_OPS = {{
     {'(', tree::TokenType::LeftParen},
     {')', tree::TokenType::RightParen},
     {',', tree::TokenType::Comma},
-    {'.', tree::TokenType::Dot},
     {':', tree::TokenType::Colon},
     {'+', tree::TokenType::Plus},
     {'*', tree::TokenType::Star},

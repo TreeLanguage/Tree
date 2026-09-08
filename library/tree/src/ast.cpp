@@ -54,9 +54,6 @@ ExprId Arena::clone(ExprId id) {
             });
         return make_expr<TupleExpr>(e.span, std::move(fields));
       },
-      [&](const FieldAccess &f) {
-        return make_expr<FieldAccess>(e.span, clone(f.target), f.key);
-      },
       [&](const Call &c) {
         std::vector<ExprId> args;
         args.reserve(c.args.size());

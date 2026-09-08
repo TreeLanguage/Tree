@@ -73,13 +73,6 @@ struct TupleExpr {
   std::vector<TupleExprField> fields;
 };
 
-using FieldKey = std::variant<int64_t, std::string>;
-
-struct FieldAccess {
-  ExprId target;
-  FieldKey key;
-};
-
 struct Call {
   ExprId callee;
   std::vector<ExprId> args;
@@ -116,7 +109,7 @@ struct Assignment {
 };
 
 struct Expr {
-  std::variant<FloatLiteral, StringLiteral, Identifier, TupleExpr, FieldAccess,
+  std::variant<FloatLiteral, StringLiteral, Identifier, TupleExpr,
                Call, BinaryExpr, Lambda, IfExpr, FunctionClause, Assignment>
       value;
   Span span;

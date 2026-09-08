@@ -5,9 +5,7 @@
 #include "token.hpp"
 #include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstddef>
-#include <cstdint>
 #include <iterator>
 #include <optional>
 #include <string>
@@ -250,30 +248,8 @@ private:
   tree::ExprId parse_postfix() {
     tree::ExprId expr = parse_primary();
     for (;;) {
-      if (match(tree::TokenType::Dot)) {
-        if (check(tree::TokenType::Float)) {
-          const tree::Token idx_tok = advance();
-          const tree::Span span{prog_.arena.get(expr).span.begin,
-                                idx_tok.span.end};
-          const double f = idx_tok.float_value;
-          if (f != std::floor(f) || f < 0) {
-            error(idx_tok.span,
-                  "tuple field index must be a non-negative integer");
-          }
-          auto idx = static_cast<int64_t>(f);
-          expr = make_expr<tree::FieldAccess>(span, expr, tree::FieldKey{idx});
-        } else if (check(tree::TokenType::Identifier)) {
-          tree::Token name_tok = advance();
-          const tree::Span span{prog_.arena.get(expr).span.begin,
-                                name_tok.span.end};
-          expr = make_expr<tree::FieldAccess>(
-              span, expr, tree::FieldKey{name_tok.string_value});
-        } else {
-          error(peek().span, "expected field index or name after '.'");
-        }
-      } else if (check(tree::TokenType::LeftParen) &&
-                 peek().span.begin.line ==
-                     prog_.arena.get(expr).span.end.line) {
+      if (check(tree::TokenType::LeftParen) &&
+          peek().span.begin.line == prog_.arena.get(expr).span.end.line) {
         expr = parse_call(expr);
       } else {
         break;
