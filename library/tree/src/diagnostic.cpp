@@ -12,8 +12,9 @@ std::string_view to_string(Severity severity) noexcept {
     return "error";
   case Severity::Warning:
     return "warning";
+  default:
+    return "unknown";
   }
-  return "unknown";
 }
 
 DiagnosticEngine::DiagnosticEngine(std::string filename, std::string source)
@@ -70,8 +71,8 @@ void DiagnosticEngine::print_location(std::ostream &os, Span span) const {
     os << ' ';
   }
   const int underline_end = (span.end.line == span.begin.line)
-                          ? span.end.column
-                          : static_cast<int>(text.size()) + 1;
+                                ? span.end.column
+                                : static_cast<int>(text.size()) + 1;
   for (; column < underline_end; ++column) {
     os << '^';
   }

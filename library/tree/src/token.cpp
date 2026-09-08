@@ -46,7 +46,8 @@ std::string_view to_string(TokenType type) noexcept {
     return "Else";
   case TokenType::Eof:
     return "Eof";
+  default:
+    return "Unknown";
   }
-  return "Unknown";
 }
 } // namespace tree

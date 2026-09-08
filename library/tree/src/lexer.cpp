@@ -99,7 +99,8 @@ public:
     }
 
     out.push_back({.type = tree::TokenType::Eof,
-                   .span = tree::Span(line_, col_, line_, col_)});
+                   .span = tree::Span(line_, col_, line_, col_),
+                   .string_value = {}});
     return out;
   }
 
@@ -171,7 +172,8 @@ private:
 
     const std::string_view num_str = source_.substr(start_idx, i_ - start_idx);
     tree::Token t{.type = tree::TokenType::Float,
-                  .span = tree::Span(start_line, start_col, line_, col_)};
+                  .span = tree::Span(start_line, start_col, line_, col_),
+                  .string_value = {}};
     t.float_value = std::stod(std::string(num_str));
     return t;
   }
@@ -270,7 +272,8 @@ private:
     std::string decoded = decode_string_escapes(raw, start_line, start_col);
 
     tree::Token t{.type = tree::TokenType::String,
-                  .span = tree::Span(start_line, start_col, line_, col_)};
+                  .span = tree::Span(start_line, start_col, line_, col_),
+                  .string_value = {}};
     t.string_value = std::move(decoded);
     if (!at_end()) {
       advance_pos(1);
@@ -303,7 +306,8 @@ private:
     out = tree::Token{.type = kind,
                       .span =
                           tree::Span(start_line, start_col, line_,
-                                     col_ + static_cast<int>(advance_len) - 1)};
+                                     col_ + static_cast<int>(advance_len) - 1),
+                      .string_value = {}};
     advance_pos(advance_len);
     return true;
   }

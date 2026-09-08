@@ -1,5 +1,11 @@
-file(GLOB TREE_SOURCES "src/*.cpp")
-add_library(treelib STATIC ${TREE_SOURCES})
+add_library(treelib STATIC
+    src/ast.cpp
+    src/diagnostic.cpp
+    src/lexer.cpp
+    src/parser.cpp
+    src/span.cpp
+    src/token.cpp
+)
 
 target_include_directories(treelib
     PUBLIC
@@ -9,3 +15,16 @@ target_include_directories(treelib
     PRIVATE
         src
 )
+
+if(MSVC)
+    target_compile_options(treelib PRIVATE /W4 /WX)
+else()
+    target_compile_options(treelib PRIVATE
+        -Wall -Wextra -Wpedantic
+        -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
+        -Woverloaded-virtual -Wnull-dereference -Wdouble-promotion
+        -Wformat=2 -Wimplicit-fallthrough -Wunused
+        -Wconversion -Wsign-conversion
+        -Wmisleading-indentation -Werror
+    )
+endif()

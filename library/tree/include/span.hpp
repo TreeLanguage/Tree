@@ -8,8 +8,8 @@ struct Position {
   int line;
   int column;
 
-  explicit constexpr Position(int line = 0, int column = 0) noexcept
-      : line(line), column(column) {}
+  explicit constexpr Position(int new_line = 0, int new_column = 0) noexcept
+      : line(new_line), column(new_column) {}
 
   constexpr bool operator==(const Position &) const noexcept = default;
   constexpr std::strong_ordering
@@ -22,9 +22,9 @@ struct Span {
   Position begin;
   Position end;
 
-  explicit constexpr Span(Position begin = Position{},
-                          Position end = Position{}) noexcept
-      : begin(begin), end(end) {}
+  explicit constexpr Span(Position new_begin = Position{},
+                          Position new_end = Position{}) noexcept
+      : begin(new_begin), end(new_end) {}
 
   constexpr Span(int start_line, int start_col, int end_line,
                  int end_col) noexcept
