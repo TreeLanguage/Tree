@@ -170,10 +170,16 @@ private:
 
   tree::ExprId parse_top_level() {
     const tree::Span start = peek().span;
-    tree::ExprId head = parse_postfix();
+    const tree::ExprId head = parse_unary();
 
     if (!match(tree::TokenType::Assign)) {
-      return head;
+      tree::ExprId expr =
+          continue_binary_level(MULTIPLICATIVE_OPS, &Parser::parse_unary, head);
+      expr = continue_binary_level(ADDITIVE_OPS, &Parser::parse_multiplicative,
+                                   expr);
+      expr =
+          continue_binary_level(COMPARISON_OPS, &Parser::parse_additive, expr);
+      return expr;
     }
 
     const tree::ExprId body = parse_expr();
@@ -214,10 +220,9 @@ private:
   }
 
   template <std::size_t N>
-  tree::ExprId parse_binary_level(
+  tree::ExprId continue_binary_level(
       const std::array<std::pair<tree::TokenType, tree::BinaryOp>, N> &ops,
-      tree::ExprId (Parser::*next)()) {
-    tree::ExprId lhs = (this->*next)();
+      tree::ExprId (Parser::*next)(), tree::ExprId lhs) {
     for (;;) {
       auto op = lookup_op(ops, peek().type);
       if (!op) {
@@ -230,6 +235,14 @@ private:
       lhs = make_expr<tree::BinaryExpr>(span, *op, lhs, rhs);
     }
     return lhs;
+  }
+
+  template <std::size_t N>
+  tree::ExprId parse_binary_level(
+      const std::array<std::pair<tree::TokenType, tree::BinaryOp>, N> &ops,
+      tree::ExprId (Parser::*next)()) {
+    const tree::ExprId lhs = (this->*next)();
+    return continue_binary_level(ops, next, lhs);
   }
 
   tree::ExprId parse_unary() {

@@ -21,7 +21,7 @@ struct LexResult {
 };
 
 LexResult lex(const std::string &src) {
-  LexResult result{{}, DiagnosticEngine("<test>", src)};
+  LexResult result{.tokens = {}, .diag = DiagnosticEngine("<test>", src)};
   result.tokens = lexer(src, result.diag);
   return result;
 }
@@ -178,7 +178,7 @@ TEST(span_tracks_line_and_column) {
 }
 
 TEST(small_program) {
-  auto r = lex("if x == 1 then \"yes\" else \"no\"");
+  auto r = lex(R"(if x == 1 then "yes" else "no")");
   std::vector<TokenType> expected = {
       TokenType::If,    TokenType::Identifier, TokenType::Equal,
       TokenType::Float, TokenType::Then,       TokenType::String,

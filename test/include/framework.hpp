@@ -7,15 +7,26 @@
 
 namespace tf {
 
-struct TestCase {
+struct TestBase {
   const char *name;
-  void (*fn)();
-};
 
-inline std::vector<TestCase> &registry() {
-  static std::vector<TestCase> tests;
-  return tests;
-}
+  explicit TestBase(const char *n) noexcept : name(n) {
+    registry().push_back(this);
+  }
+  virtual ~TestBase() = default;
+
+  TestBase(const TestBase &) = delete;
+  TestBase &operator=(const TestBase &) = delete;
+  TestBase(TestBase &&) = delete;
+  TestBase &operator=(TestBase &&) = delete;
+
+  virtual void run() = 0;
+
+  static std::vector<TestBase *> &registry() {
+    static std::vector<TestBase *> tests;
+    return tests;
+  }
+};
 
 inline int &failures() {
   static int count = 0;
@@ -33,24 +44,18 @@ inline void report_failure(const char *file, int line, const std::string &msg) {
             << "): " << msg << '\n';
 }
 
-struct Registrar {
-  Registrar(const char *name, void (*fn)()) {
-    registry().push_back({name, fn});
-  }
-};
-
 inline int run_all() {
-  for (const TestCase &tc : registry()) {
-    current_test_name() = tc.name;
-    std::cerr << "[RUN ] " << tc.name << '\n';
-    tc.fn();
+  for (TestBase *tc : TestBase::registry()) {
+    current_test_name() = tc->name;
+    std::cerr << "[RUN ] " << tc->name << '\n';
+    tc->run();
   }
 
   if (failures() == 0) {
-    std::cerr << "All " << registry().size() << " test(s) passed.\n";
+    std::cerr << "All " << TestBase::registry().size() << " test(s) passed.\n";
   } else {
-    std::cerr << failures() << " check(s) failed across " << registry().size()
-              << " test(s).\n";
+    std::cerr << failures() << " check(s) failed across "
+              << TestBase::registry().size() << " test(s).\n";
   }
   return failures();
 }
@@ -58,14 +63,14 @@ inline int run_all() {
 } // namespace tf
 
 #define CHECK(cond)                                                            \
-  do {                                                                         \
+  [&] {                                                                        \
     if (!(cond)) {                                                             \
       tf::report_failure(__FILE__, __LINE__, "CHECK failed: " #cond);          \
     }                                                                          \
-  } while (0)
+  }()
 
 #define CHECK_EQ(actual, expected)                                             \
-  do {                                                                         \
+  [&] {                                                                        \
     const auto &actual_val = (actual);                                         \
     const auto &expected_val = (expected);                                     \
     if (!(actual_val == expected_val)) {                                       \
@@ -74,11 +79,14 @@ inline int run_all() {
           << ", expected " << expected_val << ')';                             \
       tf::report_failure(__FILE__, __LINE__, oss.str());                       \
     }                                                                          \
-  } while (0)
+  }()
 
 #define TEST(name)                                                             \
-  static void tf_test_##name();                                                \
   namespace {                                                                  \
-  static ::tf::Registrar tf_registrar_##name(#name, &tf_test_##name);          \
+  struct Test_##name : ::tf::TestBase {                                        \
+    Test_##name() noexcept : ::tf::TestBase(#name) {}                          \
+    void run() override;                                                       \
+  };                                                                           \
+  Test_##name tf_instance_##name;                                              \
   }                                                                            \
-  static void tf_test_##name()
+  void Test_##name::run()
