@@ -197,8 +197,11 @@ private:
         }
         std::string name = callee_id->name;
         const tree::PatternId param = expr_to_pattern(call->args[0]);
-        return make_expr<tree::FunctionClause>(span, std::move(name), param,
-                                               body);
+        const tree::ExprId lambda =
+            make_expr<tree::Lambda>(span, std::move(name), param, body);
+        const tree::PatternId lhs =
+            make_pattern<tree::VarPattern>(callee_expr.span, callee_id->name);
+        return make_expr<tree::Assignment>(span, lhs, lambda);
       }
     }
 
@@ -360,7 +363,7 @@ private:
     expect(tree::TokenType::Arrow, "'->'");
     const tree::ExprId body = parse_expr();
     const tree::Span span{start.begin, prog_.arena.get(body).span.end};
-    return make_expr<tree::Lambda>(span, param, body);
+    return make_expr<tree::Lambda>(span, std::nullopt, param, body);
   }
 
   tree::ExprId parse_if() {

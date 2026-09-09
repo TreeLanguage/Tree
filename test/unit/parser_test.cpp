@@ -368,29 +368,46 @@ TEST(function_clause_with_tuple_param_pattern) {
   CHECK(!r.diag.has_errors());
   CHECK_EQ(r.prog.exprs.size(), static_cast<size_t>(1));
   const tree::Expr &e = get_expr(r.prog, r.prog.exprs[0]);
-  const auto *clause =
-      require_alt<tree::FunctionClause>(e.value, "FunctionClause");
-  if (clause == nullptr)
+  const auto *assign = require_alt<tree::Assignment>(e.value, "Assignment");
+  if (assign == nullptr)
     return;
-  CHECK_EQ(clause->name, std::string("add"));
+  const auto *target = require_alt<tree::VarPattern>(
+      get_pattern(r.prog, assign->target).value, "VarPattern");
+  if (target != nullptr)
+    CHECK_EQ(target->name, std::string("add"));
+  const auto *lambda = require_alt<tree::Lambda>(
+      get_expr(r.prog, assign->value).value, "Lambda");
+  if (lambda == nullptr)
+    return;
+  CHECK(lambda->name.has_value());
+  CHECK_EQ(*lambda->name, std::string("add"));
   const auto *tup_pat = require_alt<tree::TuplePattern>(
-      get_pattern(r.prog, clause->param).value, "TuplePattern");
+      get_pattern(r.prog, lambda->param).value, "TuplePattern");
   if (tup_pat != nullptr)
     CHECK_EQ(tup_pat->fields.size(), static_cast<size_t>(2));
-  const tree::Expr &body = get_expr(r.prog, clause->body);
+  const tree::Expr &body = get_expr(r.prog, lambda->body);
   require_alt<tree::BinaryExpr>(body.value, "BinaryExpr");
 }
 
 TEST(function_clause_with_literal_pattern) {
   auto r = parse_src("factorial(0) = 1");
   CHECK(!r.diag.has_errors());
-  const auto *clause = require_alt<tree::FunctionClause>(
-      get_expr(r.prog, r.prog.exprs[0]).value, "FunctionClause");
-  if (clause == nullptr)
+  const auto *assign = require_alt<tree::Assignment>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "Assignment");
+  if (assign == nullptr)
     return;
-  CHECK_EQ(clause->name, std::string("factorial"));
+  const auto *target = require_alt<tree::VarPattern>(
+      get_pattern(r.prog, assign->target).value, "VarPattern");
+  if (target != nullptr)
+    CHECK_EQ(target->name, std::string("factorial"));
+  const auto *lambda = require_alt<tree::Lambda>(
+      get_expr(r.prog, assign->value).value, "Lambda");
+  if (lambda == nullptr)
+    return;
+  CHECK(lambda->name.has_value());
+  CHECK_EQ(*lambda->name, std::string("factorial"));
   const auto *lit_pat = require_alt<tree::FloatPattern>(
-      get_pattern(r.prog, clause->param).value, "FloatPattern");
+      get_pattern(r.prog, lambda->param).value, "FloatPattern");
   if (lit_pat != nullptr)
     CHECK_EQ(lit_pat->value, 0.0);
 }
@@ -398,19 +415,34 @@ TEST(function_clause_with_literal_pattern) {
 TEST(function_clause_with_nested_tuple_pattern) {
   auto r = parse_src("fibAcc((n, (a, b))) = a");
   CHECK(!r.diag.has_errors());
-  const auto *clause = require_alt<tree::FunctionClause>(
-      get_expr(r.prog, r.prog.exprs[0]).value, "FunctionClause");
-  if (clause == nullptr)
+  CHECK_EQ(r.prog.exprs.size(), static_cast<size_t>(1));
+  const tree::Expr &e = get_expr(r.prog, r.prog.exprs[0]);
+  const auto *assign = require_alt<tree::Assignment>(e.value, "Assignment");
+  if (assign == nullptr)
     return;
+  const auto *target = require_alt<tree::VarPattern>(
+      get_pattern(r.prog, assign->target).value, "VarPattern");
+  if (target != nullptr)
+    CHECK_EQ(target->name, std::string("fibAcc"));
+  const auto *lambda = require_alt<tree::Lambda>(
+      get_expr(r.prog, assign->value).value, "Lambda");
+  if (lambda == nullptr)
+    return;
+  CHECK(lambda->name.has_value());
+  CHECK_EQ(*lambda->name, std::string("fibAcc"));
   const auto *tup_pat = require_alt<tree::TuplePattern>(
-      get_pattern(r.prog, clause->param).value, "TuplePattern");
+      get_pattern(r.prog, lambda->param).value, "TuplePattern");
   if (tup_pat == nullptr)
     return;
   CHECK_EQ(tup_pat->fields.size(), static_cast<size_t>(2));
-  require_alt<tree::VarPattern>(
+  const auto *first = require_alt<tree::VarPattern>(
       get_pattern(r.prog, tup_pat->fields[0].pattern).value, "VarPattern");
-  require_alt<tree::TuplePattern>(
+  (void)first;
+  const auto *nested = require_alt<tree::TuplePattern>(
       get_pattern(r.prog, tup_pat->fields[1].pattern).value, "TuplePattern");
+  if (nested == nullptr)
+    return;
+  CHECK_EQ(nested->fields.size(), static_cast<size_t>(2));
 }
 
 TEST(multiple_top_level_statements) {
@@ -482,13 +514,22 @@ TEST(deep_nested_named_tuple_destructure) {
 TEST(recursive_style_clause_sum_list) {
   auto r = parse_src("sumList((x, rest)) = x + sumList(rest)");
   CHECK(!r.diag.has_errors());
-  const auto *clause = require_alt<tree::FunctionClause>(
-      get_expr(r.prog, r.prog.exprs[0]).value, "FunctionClause");
-  if (clause == nullptr)
+  const auto *assign = require_alt<tree::Assignment>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "Assignment");
+  if (assign == nullptr)
     return;
-  CHECK_EQ(clause->name, std::string("sumList"));
-  const tree::Expr &body = get_expr(r.prog, clause->body);
+  const auto *target = require_alt<tree::VarPattern>(
+      get_pattern(r.prog, assign->target).value, "VarPattern");
+  if (target != nullptr)
+    CHECK_EQ(target->name, std::string("sumList"));
+  const auto *lambda = require_alt<tree::Lambda>(
+      get_expr(r.prog, assign->value).value, "Lambda");
+  if (lambda == nullptr)
+    return;
+  CHECK(lambda->name.has_value());
+  CHECK_EQ(*lambda->name, std::string("sumList"));
+  const tree::Expr &body = get_expr(r.prog, lambda->body);
   const auto *add = require_alt<tree::BinaryExpr>(body.value, "BinaryExpr");
   if (add != nullptr)
-    CHECK(add->op == BinaryOp::Add);
+    CHECK(add->op == tree::BinaryOp::Add);
 }

@@ -4,15 +4,15 @@
 
 namespace tree::config {
 
-inline constexpr std::string_view version = "@PROJECT_VERSION@";
-inline constexpr int version_major = @PROJECT_VERSION_MAJOR @;
-inline constexpr int version_minor = @PROJECT_VERSION_MINOR @;
-inline constexpr int version_patch = @PROJECT_VERSION_PATCH @;
-inline constexpr std::string_view compiler_id = "@CMAKE_CXX_COMPILER_ID@";
-inline constexpr std::string_view compiler_version =
+inline constexpr std::string_view VERSION = "@PROJECT_VERSION@";
+inline constexpr int VERSION_MAJOR = @PROJECT_VERSION_MAJOR@;
+inline constexpr int VERSION_MINOR = @PROJECT_VERSION_MINOR@;
+inline constexpr int VERSION_PATCH = @PROJECT_VERSION_PATCH@;
+inline constexpr std::string_view COMPILER_ID = "@CMAKE_CXX_COMPILER_ID@";
+inline constexpr std::string_view COMPILER_VERSION =
     "@CMAKE_CXX_COMPILER_VERSION@";
-inline constexpr std::string_view build_type = "@CMAKE_BUILD_TYPE@";
-inline constexpr std::string_view system_name = "@CMAKE_SYSTEM_NAME@";
-inline constexpr std::string_view system_processor = "@CMAKE_SYSTEM_PROCESSOR@";
+inline constexpr std::string_view BUILD_TYPE = "@CMAKE_BUILD_TYPE@";
+inline constexpr std::string_view SYSTEM_NAME = "@CMAKE_SYSTEM_NAME@";
+inline constexpr std::string_view SYSTEM_PROCESSOR = "@CMAKE_SYSTEM_PROCESSOR@";
 
 } // namespace tree::config

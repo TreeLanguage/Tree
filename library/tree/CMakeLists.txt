@@ -16,15 +16,7 @@ target_include_directories(treelib
         src
 )
 
-if(MSVC)
-    target_compile_options(treelib PRIVATE /W4 /WX)
-else()
-    target_compile_options(treelib PRIVATE
-        -Wall -Wextra -Wpedantic
-        -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
-        -Woverloaded-virtual -Wnull-dereference -Wdouble-promotion
-        -Wformat=2 -Wimplicit-fallthrough -Wunused
-        -Wconversion -Wsign-conversion
-        -Wmisleading-indentation -Werror
-    )
-endif()
+target_compile_options(treelib PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4;/WX;/permissive->
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align -Woverloaded-virtual -Wnull-dereference -Wdouble-promotion -Wformat=2 -Wimplicit-fallthrough -Wunused -Wconversion -Wsign-conversion -Wmisleading-indentation -Werror>
+)

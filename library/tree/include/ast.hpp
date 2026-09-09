@@ -93,6 +93,7 @@ struct BinaryExpr {
 };
 
 struct Lambda {
+  std::optional<std::string> name;
   PatternId param;
   ExprId body;
 };
@@ -103,12 +104,6 @@ struct IfExpr {
   ExprId else_branch;
 };
 
-struct FunctionClause {
-  std::string name;
-  PatternId param;
-  ExprId body;
-};
-
 struct Assignment {
   PatternId target;
   ExprId value;
@@ -116,7 +111,7 @@ struct Assignment {
 
 struct Expr {
   std::variant<FloatLiteral, StringLiteral, Identifier, TupleExpr, Call,
-               BinaryExpr, Lambda, IfExpr, FunctionClause, Assignment>
+               BinaryExpr, Lambda, IfExpr, Assignment>
       value;
   Span span;
 
