@@ -87,7 +87,7 @@ struct Call {
 enum class BinaryOp : uint8_t { Add, Sub, Mul, Div, Mod, Equal, LessThan };
 
 struct BinaryExpr {
-  BinaryOp op = {};
+  BinaryOp op{};
   ExprId lhs;
   ExprId rhs;
 };
@@ -104,14 +104,14 @@ struct IfExpr {
   ExprId else_branch;
 };
 
-struct Assignment {
+struct Binding {
   PatternId target;
   ExprId value;
 };
 
 struct Expr {
   std::variant<FloatLiteral, StringLiteral, Identifier, TupleExpr, Call,
-               BinaryExpr, Lambda, IfExpr, Assignment>
+               BinaryExpr, Lambda, IfExpr, Binding>
       value;
   Span span;
 

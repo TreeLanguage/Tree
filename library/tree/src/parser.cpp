@@ -201,11 +201,11 @@ private:
             make_expr<tree::Lambda>(span, std::move(name), param, body);
         const tree::PatternId lhs =
             make_pattern<tree::VarPattern>(callee_expr.span, callee_id->name);
-        return make_expr<tree::Assignment>(span, lhs, lambda);
+        return make_expr<tree::Binding>(span, lhs, lambda);
       }
     }
 
-    return make_expr<tree::Assignment>(span, expr_to_pattern(head), body);
+    return make_expr<tree::Binding>(span, expr_to_pattern(head), body);
   }
 
   tree::ExprId parse_expr() { return parse_comparison(); }

@@ -31,7 +31,7 @@ enum class TokenType : uint8_t {
 };
 
 struct Token {
-  TokenType type = {};
+  TokenType type{};
   Span span;
 
   double float_value = 0.0;

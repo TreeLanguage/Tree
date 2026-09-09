@@ -14,7 +14,7 @@ enum class Severity : uint8_t { Error, Warning };
 std::string_view to_string(Severity severity) noexcept;
 
 struct Diagnostic {
-  Severity severity = {};
+  Severity severity{};
   Span span;
   std::string message;
 };

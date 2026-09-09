@@ -72,8 +72,8 @@ ExprId Arena::clone(ExprId id) {
         return make_expr<IfExpr>(e.span, clone(i.cond), clone(i.then_branch),
                                  clone(i.else_branch));
       },
-      [&](const Assignment &a) {
-        return make_expr<Assignment>(e.span, clone(a.target), clone(a.value));
+      [&](const Binding &a) {
+        return make_expr<Binding>(e.span, clone(a.target), clone(a.value));
       });
 }
 

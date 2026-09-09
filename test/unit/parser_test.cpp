@@ -289,12 +289,12 @@ TEST(if_then_else) {
     CHECK_EQ(else_lit->value, 2.0);
 }
 
-TEST(simple_assignment_to_var_pattern) {
+TEST(simple_Binding_to_var_pattern) {
   auto r = parse_src("x = 5");
   CHECK(!r.diag.has_errors());
   CHECK_EQ(r.prog.exprs.size(), static_cast<size_t>(1));
   const tree::Expr &e = get_expr(r.prog, r.prog.exprs[0]);
-  const auto *assign = require_alt<tree::Assignment>(e.value, "Assignment");
+  const auto *assign = require_alt<tree::Binding>(e.value, "Binding");
   if (assign == nullptr)
     return;
   const auto *pat = require_alt<tree::VarPattern>(
@@ -303,11 +303,11 @@ TEST(simple_assignment_to_var_pattern) {
     CHECK_EQ(pat->name, std::string("x"));
 }
 
-TEST(tuple_destructuring_assignment) {
+TEST(tuple_destructuring_Binding) {
   auto r = parse_src("(a, b) = pair");
   CHECK(!r.diag.has_errors());
   const tree::Expr &e = get_expr(r.prog, r.prog.exprs[0]);
-  const auto *assign = require_alt<tree::Assignment>(e.value, "Assignment");
+  const auto *assign = require_alt<tree::Binding>(e.value, "Binding");
   if (assign == nullptr)
     return;
   const auto *pat = require_alt<tree::TuplePattern>(
@@ -320,8 +320,8 @@ TEST(tuple_destructuring_assignment) {
 TEST(wildcard_and_var_patterns_in_tuple_destructure) {
   auto r = parse_src("(_, _, third) = triple");
   CHECK(!r.diag.has_errors());
-  const auto *assign = require_alt<tree::Assignment>(
-      get_expr(r.prog, r.prog.exprs[0]).value, "Assignment");
+  const auto *assign = require_alt<tree::Binding>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "Binding");
   if (assign == nullptr)
     return;
   const auto *pat = require_alt<tree::TuplePattern>(
@@ -342,8 +342,8 @@ TEST(wildcard_and_var_patterns_in_tuple_destructure) {
 TEST(named_field_pattern_with_catchall_wildcard) {
   auto r = parse_src("(x: px, _) = point");
   CHECK(!r.diag.has_errors());
-  const auto *assign = require_alt<tree::Assignment>(
-      get_expr(r.prog, r.prog.exprs[0]).value, "Assignment");
+  const auto *assign = require_alt<tree::Binding>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "Binding");
   if (assign == nullptr)
     return;
   const auto *pat = require_alt<tree::TuplePattern>(
@@ -368,7 +368,7 @@ TEST(function_clause_with_tuple_param_pattern) {
   CHECK(!r.diag.has_errors());
   CHECK_EQ(r.prog.exprs.size(), static_cast<size_t>(1));
   const tree::Expr &e = get_expr(r.prog, r.prog.exprs[0]);
-  const auto *assign = require_alt<tree::Assignment>(e.value, "Assignment");
+  const auto *assign = require_alt<tree::Binding>(e.value, "Binding");
   if (assign == nullptr)
     return;
   const auto *target = require_alt<tree::VarPattern>(
@@ -392,8 +392,8 @@ TEST(function_clause_with_tuple_param_pattern) {
 TEST(function_clause_with_literal_pattern) {
   auto r = parse_src("factorial(0) = 1");
   CHECK(!r.diag.has_errors());
-  const auto *assign = require_alt<tree::Assignment>(
-      get_expr(r.prog, r.prog.exprs[0]).value, "Assignment");
+  const auto *assign = require_alt<tree::Binding>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "Binding");
   if (assign == nullptr)
     return;
   const auto *target = require_alt<tree::VarPattern>(
@@ -417,7 +417,7 @@ TEST(function_clause_with_nested_tuple_pattern) {
   CHECK(!r.diag.has_errors());
   CHECK_EQ(r.prog.exprs.size(), static_cast<size_t>(1));
   const tree::Expr &e = get_expr(r.prog, r.prog.exprs[0]);
-  const auto *assign = require_alt<tree::Assignment>(e.value, "Assignment");
+  const auto *assign = require_alt<tree::Binding>(e.value, "Binding");
   if (assign == nullptr)
     return;
   const auto *target = require_alt<tree::VarPattern>(
@@ -449,10 +449,10 @@ TEST(multiple_top_level_statements) {
   auto r = parse_src("x = 1\ny = 2");
   CHECK(!r.diag.has_errors());
   CHECK_EQ(r.prog.exprs.size(), static_cast<size_t>(2));
-  require_alt<tree::Assignment>(get_expr(r.prog, r.prog.exprs[0]).value,
-                                "Assignment");
-  require_alt<tree::Assignment>(get_expr(r.prog, r.prog.exprs[1]).value,
-                                "Assignment");
+  require_alt<tree::Binding>(get_expr(r.prog, r.prog.exprs[0]).value,
+                                "Binding");
+  require_alt<tree::Binding>(get_expr(r.prog, r.prog.exprs[1]).value,
+                                "Binding");
 }
 
 TEST(unclosed_paren_reports_error) {
@@ -461,7 +461,7 @@ TEST(unclosed_paren_reports_error) {
   CHECK(r.diag.count(Severity::Error) >= static_cast<size_t>(1));
 }
 
-TEST(invalid_assignment_target_reports_error) {
+TEST(invalid_Binding_target_reports_error) {
   auto r = parse_src("(1)(2) = 3");
   CHECK(r.diag.has_errors());
 }
@@ -484,8 +484,8 @@ TEST(parse_error_does_not_stop_subsequent_statements) {
 TEST(deep_nested_named_tuple_destructure) {
   auto r = parse_src("(name: n, address: (city: c, _), _) = user");
   CHECK(!r.diag.has_errors());
-  const auto *assign = require_alt<tree::Assignment>(
-      get_expr(r.prog, r.prog.exprs[0]).value, "Assignment");
+  const auto *assign = require_alt<tree::Binding>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "Binding");
   if (assign == nullptr)
     return;
   const auto *pat = require_alt<tree::TuplePattern>(
@@ -514,8 +514,8 @@ TEST(deep_nested_named_tuple_destructure) {
 TEST(recursive_style_clause_sum_list) {
   auto r = parse_src("sumList((x, rest)) = x + sumList(rest)");
   CHECK(!r.diag.has_errors());
-  const auto *assign = require_alt<tree::Assignment>(
-      get_expr(r.prog, r.prog.exprs[0]).value, "Assignment");
+  const auto *assign = require_alt<tree::Binding>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "Binding");
   if (assign == nullptr)
     return;
   const auto *target = require_alt<tree::VarPattern>(
