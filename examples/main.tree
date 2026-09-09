@@ -26,8 +26,8 @@ factorial(n) = n * factorial(n - 1)
 factorial(5)  # => 120
 
 # Fibonacci with accumulation
-fibAcc(0, (a, b)) = a
-fibAcc(n, (a, b)) = fibAcc(n - 1, (b, a + b))
+fibAcc((0, (a, b))) = a
+fibAcc((n, (a, b))) = fibAcc(n - 1, (b, a + b))
 
 fib(n) = fibAcc(n, (0, 1))
 fib(10)  # => 55
@@ -112,22 +112,22 @@ len((_, tail)) = 1 + len(tail)
 len(list)  # => 4
 
 # Reverse with accumulator
-revAcc((), acc) = acc
-revAcc((h, t), acc) = revAcc(t, (h, acc))
+revAcc(((), acc)) = acc
+revAcc(((h, t), acc)) = revAcc(t, (h, acc))
 
 reverse(lst) = revAcc(lst, ())
 reverse(list)  # => (4, (3, (2, (1, ()))))
 
 # Map
-mapList(_, ()) = ()
-mapList(f, (h, t)) = (f(h), mapList(f, t))
+mapList((_, ())) = ()
+mapList((f, (h, t))) = (f(h), mapList(f, t))
 
 double = mapList(\x -> x * 2, list)
 double # => (2, (4, (6, (8, ()))))
 
 # Filter
-filterList(_, ()) = ()
-filterList(pred, (h, t)) =
+filterList((_, ())) = ()
+filterList((pred, (h, t))) =
   if pred(h) then
     (h, filterList(pred, t))
   else

@@ -65,22 +65,14 @@ ExprId Arena::clone(ExprId id) {
         return make_expr<BinaryExpr>(e.span, b.op, clone(b.lhs), clone(b.rhs));
       },
       [&](const Lambda &l) {
-        std::vector<PatternId> params;
-        params.reserve(l.params.size());
-        std::ranges::transform(l.params, std::back_inserter(params),
-                               [&](auto p) { return clone(p); });
-        return make_expr<Lambda>(e.span, std::move(params), clone(l.body));
+        return make_expr<Lambda>(e.span, clone(l.param), clone(l.body));
       },
       [&](const IfExpr &i) {
         return make_expr<IfExpr>(e.span, clone(i.cond), clone(i.then_branch),
                                  clone(i.else_branch));
       },
       [&](const FunctionClause &f) {
-        std::vector<PatternId> params;
-        params.reserve(f.params.size());
-        std::ranges::transform(f.params, std::back_inserter(params),
-                               [&](auto p) { return clone(p); });
-        return make_expr<FunctionClause>(e.span, f.name, std::move(params),
+        return make_expr<FunctionClause>(e.span, f.name, clone(f.param),
                                          clone(f.body));
       },
       [&](const Assignment &a) {

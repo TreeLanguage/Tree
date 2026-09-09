@@ -16,6 +16,7 @@ struct PatternId {
   [[nodiscard]] bool valid() const { return index != UINT32_MAX; }
   friend bool operator==(PatternId, PatternId) = default;
 };
+
 struct ExprId {
   uint32_t index = UINT32_MAX;
   [[nodiscard]] bool valid() const { return index != UINT32_MAX; }
@@ -87,7 +88,7 @@ struct BinaryExpr {
 };
 
 struct Lambda {
-  std::vector<PatternId> params;
+  PatternId param;
   ExprId body;
 };
 
@@ -99,7 +100,7 @@ struct IfExpr {
 
 struct FunctionClause {
   std::string name;
-  std::vector<PatternId> params;
+  PatternId param;
   ExprId body;
 };
 
@@ -109,8 +110,8 @@ struct Assignment {
 };
 
 struct Expr {
-  std::variant<FloatLiteral, StringLiteral, Identifier, TupleExpr,
-               Call, BinaryExpr, Lambda, IfExpr, FunctionClause, Assignment>
+  std::variant<FloatLiteral, StringLiteral, Identifier, TupleExpr, Call,
+               BinaryExpr, Lambda, IfExpr, FunctionClause, Assignment>
       value;
   Span span;
 };

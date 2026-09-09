@@ -249,9 +249,8 @@ TEST(lambda_single_param) {
   const auto *lam = require_alt<tree::Lambda>(e.value, "Lambda");
   if (lam == nullptr)
     return;
-  CHECK_EQ(lam->params.size(), static_cast<size_t>(1));
   const auto *p = require_alt<tree::VarPattern>(
-      get_pattern(r.prog, lam->params[0]).value, "VarPattern");
+      get_pattern(r.prog, lam->param).value, "VarPattern");
   if (p != nullptr)
     CHECK_EQ(p->name, std::string("x"));
 }
@@ -263,7 +262,10 @@ TEST(lambda_multiple_params_in_parens) {
   const auto *lam = require_alt<tree::Lambda>(e.value, "Lambda");
   if (lam == nullptr)
     return;
-  CHECK_EQ(lam->params.size(), static_cast<size_t>(2));
+  const auto *tup_pat = require_alt<tree::TuplePattern>(
+      get_pattern(r.prog, lam->param).value, "TuplePattern");
+  if (tup_pat != nullptr)
+    CHECK_EQ(tup_pat->fields.size(), static_cast<size_t>(2));
   const tree::Expr &body = get_expr(r.prog, lam->body);
   require_alt<tree::BinaryExpr>(body.value, "BinaryExpr");
 }
@@ -371,9 +373,8 @@ TEST(function_clause_with_tuple_param_pattern) {
   if (clause == nullptr)
     return;
   CHECK_EQ(clause->name, std::string("add"));
-  CHECK_EQ(clause->params.size(), static_cast<size_t>(1));
   const auto *tup_pat = require_alt<tree::TuplePattern>(
-      get_pattern(r.prog, clause->params[0]).value, "TuplePattern");
+      get_pattern(r.prog, clause->param).value, "TuplePattern");
   if (tup_pat != nullptr)
     CHECK_EQ(tup_pat->fields.size(), static_cast<size_t>(2));
   const tree::Expr &body = get_expr(r.prog, clause->body);
@@ -388,25 +389,28 @@ TEST(function_clause_with_literal_pattern) {
   if (clause == nullptr)
     return;
   CHECK_EQ(clause->name, std::string("factorial"));
-  CHECK_EQ(clause->params.size(), static_cast<size_t>(1));
   const auto *lit_pat = require_alt<tree::FloatPattern>(
-      get_pattern(r.prog, clause->params[0]).value, "FloatPattern");
+      get_pattern(r.prog, clause->param).value, "FloatPattern");
   if (lit_pat != nullptr)
     CHECK_EQ(lit_pat->value, 0.0);
 }
 
-TEST(function_clause_with_two_params) {
-  auto r = parse_src("fibAcc(n, (a, b)) = a");
+TEST(function_clause_with_nested_tuple_pattern) {
+  auto r = parse_src("fibAcc((n, (a, b))) = a");
   CHECK(!r.diag.has_errors());
   const auto *clause = require_alt<tree::FunctionClause>(
       get_expr(r.prog, r.prog.exprs[0]).value, "FunctionClause");
   if (clause == nullptr)
     return;
-  CHECK_EQ(clause->params.size(), static_cast<size_t>(2));
-  require_alt<tree::VarPattern>(get_pattern(r.prog, clause->params[0]).value,
-                                "VarPattern");
-  require_alt<tree::TuplePattern>(get_pattern(r.prog, clause->params[1]).value,
-                                  "TuplePattern");
+  const auto *tup_pat = require_alt<tree::TuplePattern>(
+      get_pattern(r.prog, clause->param).value, "TuplePattern");
+  if (tup_pat == nullptr)
+    return;
+  CHECK_EQ(tup_pat->fields.size(), static_cast<size_t>(2));
+  require_alt<tree::VarPattern>(
+      get_pattern(r.prog, tup_pat->fields[0].pattern).value, "VarPattern");
+  require_alt<tree::TuplePattern>(
+      get_pattern(r.prog, tup_pat->fields[1].pattern).value, "TuplePattern");
 }
 
 TEST(multiple_top_level_statements) {

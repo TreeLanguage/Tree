@@ -190,15 +190,15 @@ private:
       const tree::Expr &callee_expr = prog_.arena.get(call->callee);
       if (const auto *callee_id =
               std::get_if<tree::Identifier>(&callee_expr.value)) {
+        if (call->args.size() != 1) {
+          error(head_expr.span,
+                "function definition head must be a single (tuple) argument, "
+                "e.g. 'f((x, y)) = ...'");
+        }
         std::string name = callee_id->name;
-        std::vector<tree::ExprId> args = call->args;
-        std::vector<tree::PatternId> params;
-        params.reserve(args.size());
-        std::ranges::transform(
-            args, std::back_inserter(params),
-            [this](const auto &arg) { return expr_to_pattern(arg); });
-        return make_expr<tree::FunctionClause>(span, std::move(name),
-                                               std::move(params), body);
+        const tree::PatternId param = expr_to_pattern(call->args[0]);
+        return make_expr<tree::FunctionClause>(span, std::move(name), param,
+                                               body);
       }
     }
 
@@ -355,25 +355,12 @@ private:
     const tree::Span start = peek().span;
     expect(tree::TokenType::Backslash, "'\\'");
 
-    std::vector<tree::PatternId> params;
-
-    if (check(tree::TokenType::LeftParen)) {
-      const tree::Token open = advance();
-      if (!check(tree::TokenType::RightParen)) {
-        params.push_back(expr_to_pattern(parse_postfix()));
-        while (match(tree::TokenType::Comma)) {
-          params.push_back(expr_to_pattern(parse_postfix()));
-        }
-      }
-      expect_close(tree::TokenType::RightParen, "')'", open.span, "'('");
-    } else {
-      params.push_back(expr_to_pattern(parse_postfix()));
-    }
+    const tree::PatternId param = expr_to_pattern(parse_postfix());
 
     expect(tree::TokenType::Arrow, "'->'");
     const tree::ExprId body = parse_expr();
     const tree::Span span{start.begin, prog_.arena.get(body).span.end};
-    return make_expr<tree::Lambda>(span, std::move(params), body);
+    return make_expr<tree::Lambda>(span, param, body);
   }
 
   tree::ExprId parse_if() {
