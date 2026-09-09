@@ -9,6 +9,17 @@ set(TREE_CONFIG_DIR "${CMAKE_BINARY_DIR}/generated")
 
 include(GNUInstallDirs)
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    option(ENABLE_ASAN "Build with Sanitizer" ON)
+else()
+    option(ENABLE_ASAN "Build with Sanitizer" OFF)
+endif()
+
+if(ENABLE_ASAN)
+    add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer -g)
+    add_link_options(-fsanitize=address,undefined)
+endif()
+
 configure_file(
     "${CMAKE_SOURCE_DIR}/include/tree/config.hpp.in"
     "${TREE_CONFIG_DIR}/tree/config.hpp"

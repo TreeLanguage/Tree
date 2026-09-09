@@ -51,6 +51,11 @@ struct Pattern {
                TuplePattern>
       value;
   Span span;
+
+  template <typename T, typename... Args>
+  Pattern(std::in_place_type_t<T> /*unused*/, Span new_span, Args &&...args)
+      : value(std::in_place_type<T>, std::forward<Args>(args)...),
+        span(new_span) {}
 };
 
 struct FloatLiteral {
@@ -114,19 +119,26 @@ struct Expr {
                BinaryExpr, Lambda, IfExpr, FunctionClause, Assignment>
       value;
   Span span;
+
+  template <typename T, typename... Args>
+  Expr(std::in_place_type_t<T> /*unused*/, Span new_span, Args &&...args)
+      : value(std::in_place_type<T>, std::forward<Args>(args)...),
+        span(new_span) {}
 };
 
 class Arena {
 public:
   template <typename T, typename... Args>
   ExprId make_expr(Span span, Args &&...args) {
-    exprs_.push_back(Expr{T{std::forward<Args>(args)...}, span});
+    exprs_.emplace_back(std::in_place_type<T>, span,
+                        std::forward<Args>(args)...);
     return ExprId{static_cast<uint32_t>(exprs_.size() - 1)};
   }
 
   template <typename T, typename... Args>
   PatternId make_pattern(Span span, Args &&...args) {
-    patterns_.push_back(Pattern{T{std::forward<Args>(args)...}, span});
+    patterns_.emplace_back(std::in_place_type<T>, span,
+                           std::forward<Args>(args)...);
     return PatternId{static_cast<uint32_t>(patterns_.size() - 1)};
   }
 
