@@ -450,9 +450,9 @@ TEST(multiple_top_level_statements) {
   CHECK(!r.diag.has_errors());
   CHECK_EQ(r.prog.exprs.size(), static_cast<size_t>(2));
   require_alt<tree::Binding>(get_expr(r.prog, r.prog.exprs[0]).value,
-                                "Binding");
+                             "Binding");
   require_alt<tree::Binding>(get_expr(r.prog, r.prog.exprs[1]).value,
-                                "Binding");
+                             "Binding");
 }
 
 TEST(unclosed_paren_reports_error) {
@@ -532,4 +532,186 @@ TEST(recursive_style_clause_sum_list) {
   const auto *add = require_alt<tree::BinaryExpr>(body.value, "BinaryExpr");
   if (add != nullptr)
     CHECK(add->op == tree::BinaryOp::Add);
+}
+
+TEST(unary_minus_binds_tighter_than_multiplication) {
+  auto r = parse_src("-2 * 3");
+  CHECK(!r.diag.has_errors());
+  const auto *mul = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "BinaryExpr");
+  if (mul == nullptr)
+    return;
+  CHECK(mul->op == BinaryOp::Mul);
+  const auto *sub = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, mul->lhs).value, "BinaryExpr");
+  if (sub != nullptr)
+    CHECK(sub->op == BinaryOp::Sub);
+}
+
+TEST(unary_minus_applies_to_entire_postfix_expression) {
+  auto r = parse_src("-f(1)");
+  CHECK(!r.diag.has_errors());
+  const auto *sub = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "BinaryExpr");
+  if (sub == nullptr)
+    return;
+  CHECK(sub->op == BinaryOp::Sub);
+  const auto *call =
+      require_alt<tree::Call>(get_expr(r.prog, sub->rhs).value, "Call");
+  CHECK(call != nullptr);
+}
+
+TEST(chained_unary_minus_nests) {
+  auto r = parse_src("---5");
+  CHECK(!r.diag.has_errors());
+  const auto *outer = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "BinaryExpr");
+  CHECK(outer != nullptr);
+  if (outer == nullptr)
+    return;
+  CHECK(outer->op == BinaryOp::Sub);
+  const auto *middle = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, outer->rhs).value, "BinaryExpr");
+  CHECK(middle != nullptr);
+  if (middle == nullptr)
+    return;
+  CHECK(middle->op == BinaryOp::Sub);
+}
+
+TEST(full_operator_precedence_chain) {
+  auto r = parse_src("1 + 2 * 3 == 7");
+  CHECK(!r.diag.has_errors());
+  const auto *eq = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "BinaryExpr");
+  if (eq == nullptr)
+    return;
+  CHECK(eq->op == BinaryOp::Equal);
+  const auto *add = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, eq->lhs).value, "BinaryExpr");
+  if (add == nullptr)
+    return;
+  CHECK(add->op == BinaryOp::Add);
+  const auto *mul = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, add->rhs).value, "BinaryExpr");
+  if (mul != nullptr)
+    CHECK(mul->op == BinaryOp::Mul);
+}
+
+TEST(parentheses_override_precedence) {
+  auto r = parse_src("(1 + 2) * 3");
+  CHECK(!r.diag.has_errors());
+  const auto *mul = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "BinaryExpr");
+  if (mul == nullptr)
+    return;
+  CHECK(mul->op == BinaryOp::Mul);
+  const auto *add = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, mul->lhs).value, "BinaryExpr");
+  if (add != nullptr)
+    CHECK(add->op == BinaryOp::Add);
+}
+
+TEST(call_with_no_arguments) {
+  auto r = parse_src("f()");
+  CHECK(!r.diag.has_errors());
+  const auto *call =
+      require_alt<tree::Call>(get_expr(r.prog, r.prog.exprs[0]).value, "Call");
+  if (call != nullptr)
+    CHECK_EQ(call->args.size(), static_cast<size_t>(0));
+}
+
+TEST(call_with_one_argument) {
+  auto r = parse_src("f(42)");
+  CHECK(!r.diag.has_errors());
+  const auto *call =
+      require_alt<tree::Call>(get_expr(r.prog, r.prog.exprs[0]).value, "Call");
+  if (call != nullptr)
+    CHECK_EQ(call->args.size(), static_cast<size_t>(1));
+}
+
+TEST(call_on_parenthesized_expression) {
+  auto r = parse_src("(f)(1)");
+  CHECK(!r.diag.has_errors());
+  const auto *call =
+      require_alt<tree::Call>(get_expr(r.prog, r.prog.exprs[0]).value, "Call");
+  CHECK(call != nullptr);
+}
+
+TEST(chained_calls_preserve_left_associativity) {
+  auto r = parse_src("f(1)(2)(3)");
+  CHECK(!r.diag.has_errors());
+  const auto *outer =
+      require_alt<tree::Call>(get_expr(r.prog, r.prog.exprs[0]).value, "Call");
+  CHECK(outer != nullptr);
+  if (outer == nullptr)
+    return;
+  const auto *middle =
+      require_alt<tree::Call>(get_expr(r.prog, outer->callee).value, "Call");
+  CHECK(middle != nullptr);
+  if (middle == nullptr)
+    return;
+  const auto *inner =
+      require_alt<tree::Call>(get_expr(r.prog, middle->callee).value, "Call");
+  CHECK(inner != nullptr);
+}
+
+TEST(lambda_body_includes_full_expression) {
+  auto r = parse_src("\\x -> x + 1 * 2");
+  CHECK(!r.diag.has_errors());
+  const auto *lam = require_alt<tree::Lambda>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "Lambda");
+  if (lam == nullptr)
+    return;
+  const auto *add = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, lam->body).value, "BinaryExpr");
+  if (add == nullptr)
+    return;
+  CHECK(add->op == BinaryOp::Add);
+  const auto *mul = require_alt<tree::BinaryExpr>(
+      get_expr(r.prog, add->rhs).value, "BinaryExpr");
+  if (mul != nullptr)
+    CHECK(mul->op == BinaryOp::Mul);
+}
+
+TEST(nested_lambdas) {
+  auto r = parse_src("\\x -> \\y -> x + y");
+  CHECK(!r.diag.has_errors());
+  const auto *outer = require_alt<tree::Lambda>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "Lambda");
+  if (outer == nullptr)
+    return;
+  const auto *inner =
+      require_alt<tree::Lambda>(get_expr(r.prog, outer->body).value, "Lambda");
+  CHECK(inner != nullptr);
+}
+
+TEST(nested_if_expression) {
+  auto r = parse_src("if a then if b then 1 else 2 else 3");
+  CHECK(!r.diag.has_errors());
+  const auto *outer = require_alt<tree::IfExpr>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "IfExpr");
+  if (outer == nullptr)
+    return;
+  const auto *inner = require_alt<tree::IfExpr>(
+      get_expr(r.prog, outer->then_branch).value, "IfExpr");
+  CHECK(inner != nullptr);
+}
+
+TEST(wildcard_pattern_binding) {
+  auto r = parse_src("_ = value");
+  CHECK(!r.diag.has_errors());
+  const auto *binding = require_alt<tree::Binding>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "Binding");
+  if (binding == nullptr)
+    return;
+  require_alt<tree::WildcardPattern>(get_pattern(r.prog, binding->target).value,
+                                     "WildcardPattern");
+}
+
+TEST(mixed_nested_patterns) {
+  auto r = parse_src("(a, (b, _), c: d) = value");
+  CHECK(!r.diag.has_errors());
+  const auto *binding = require_alt<tree::Binding>(
+      get_expr(r.prog, r.prog.exprs[0]).value, "Binding");
+  CHECK(binding != nullptr);
 }

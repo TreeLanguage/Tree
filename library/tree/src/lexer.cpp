@@ -220,20 +220,39 @@ private:
     std::string out_s;
     out_s.reserve(raw.size());
 
+    int line = start_line;
+    int column = start_col + 1;
+
+    auto advance = [&](char c) {
+      if (c == '\n') {
+        ++line;
+        column = 1;
+      } else {
+        ++column;
+      }
+    };
+
     for (size_t r = 0; r < raw.size(); ++r) {
       if (raw[r] != '\\') {
         out_s.push_back(raw[r]);
+        advance(raw[r]);
         continue;
       }
 
+      const int escape_line = line;
+      const int escape_column = column;
+
+      advance('\\');
+
       if (++r >= raw.size()) {
         diag_.report(tree::Severity::Error,
-                     tree::Span(start_line, start_col, line_, col_),
+                     tree::Span(escape_line, escape_column, line, column),
                      "unterminated escape sequence");
         break;
       }
 
-      switch (raw[r]) {
+      const char escaped = raw[r];
+      switch (escaped) {
       case '"':
         out_s.push_back('"');
         break;
@@ -249,12 +268,17 @@ private:
       case 'r':
         out_s.push_back('\r');
         break;
+      case '\n':
+        break;
       default:
         diag_.report(tree::Severity::Error,
-                     tree::Span(start_line, start_col, line_, col_),
-                     std::string("unknown escape sequence '\\") + raw[r] + "'");
+                     tree::Span(escape_line, escape_column, line, column + 1),
+                     std::string("unknown escape sequence '\\") + escaped +
+                         "'");
         break;
       }
+
+      advance(escaped);
     }
 
     return out_s;

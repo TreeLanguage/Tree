@@ -190,3 +190,157 @@ TEST(small_program) {
   }
   CHECK(!r.diag.has_errors());
 }
+
+TEST(token_spans_are_half_open) {
+  auto r = lex("42 foo + == \"hi\"");
+  CHECK_EQ(r.tokens.size(), static_cast<size_t>(6));
+  CHECK_EQ(r.tokens[0].span.begin.line, 1);
+  CHECK_EQ(r.tokens[0].span.begin.column, 1);
+  CHECK_EQ(r.tokens[0].span.end.line, 1);
+  CHECK_EQ(r.tokens[0].span.end.column, 3);
+  CHECK_EQ(r.tokens[1].span.begin.column, 4);
+  CHECK_EQ(r.tokens[1].span.end.column, 7);
+  CHECK_EQ(r.tokens[2].span.begin.column, 8);
+  CHECK_EQ(r.tokens[2].span.end.column, 9);
+  CHECK_EQ(r.tokens[3].span.begin.column, 10);
+  CHECK_EQ(r.tokens[3].span.end.column, 12);
+  CHECK_EQ(r.tokens[4].span.begin.column, 13);
+  CHECK_EQ(r.tokens[4].span.end.column, 17);
+}
+
+TEST(operator_spans) {
+  auto r = lex("+ - * / % = < == \\");
+  CHECK_EQ(r.tokens[0].span.begin.column, 1);
+  CHECK_EQ(r.tokens[0].span.end.column, 2);
+  CHECK_EQ(r.tokens[1].span.begin.column, 3);
+  CHECK_EQ(r.tokens[1].span.end.column, 4);
+  CHECK_EQ(r.tokens[2].span.begin.column, 5);
+  CHECK_EQ(r.tokens[2].span.end.column, 6);
+  CHECK_EQ(r.tokens[3].span.begin.column, 7);
+  CHECK_EQ(r.tokens[3].span.end.column, 8);
+  CHECK_EQ(r.tokens[4].span.begin.column, 9);
+  CHECK_EQ(r.tokens[4].span.end.column, 10);
+  CHECK_EQ(r.tokens[5].span.begin.column, 11);
+  CHECK_EQ(r.tokens[5].span.end.column, 12);
+  CHECK_EQ(r.tokens[6].span.begin.column, 13);
+  CHECK_EQ(r.tokens[6].span.end.column, 14);
+  CHECK_EQ(r.tokens[7].span.begin.column, 15);
+  CHECK_EQ(r.tokens[7].span.end.column, 17);
+  CHECK_EQ(r.tokens[8].span.begin.column, 18);
+  CHECK_EQ(r.tokens[8].span.end.column, 19);
+}
+
+TEST(escaped_newline_is_line_continuation) {
+  auto r = lex("\"hello\\\nworld\"");
+  CHECK_EQ(r.tokens.size(), static_cast<size_t>(2));
+  CHECK(r.tokens[0].type == TokenType::String);
+  CHECK_EQ(r.tokens[0].string_value, std::string("helloworld"));
+  CHECK_EQ(r.tokens[0].span.begin.line, 1);
+  CHECK_EQ(r.tokens[0].span.begin.column, 1);
+  CHECK_EQ(r.tokens[0].span.end.line, 2);
+  CHECK_EQ(r.tokens[0].span.end.column, 7);
+  CHECK(!r.diag.has_errors());
+}
+
+TEST(escaped_newline_can_be_used_multiple_times) {
+  auto r = lex("\"a\\\nb\\\nc\"");
+  CHECK_EQ(r.tokens.size(), static_cast<size_t>(2));
+  CHECK(r.tokens[0].type == TokenType::String);
+  CHECK_EQ(r.tokens[0].string_value, std::string("abc"));
+  CHECK_EQ(r.tokens[0].span.begin.line, 1);
+  CHECK_EQ(r.tokens[0].span.begin.column, 1);
+  CHECK_EQ(r.tokens[0].span.end.line, 3);
+  CHECK_EQ(r.tokens[0].span.end.column, 3);
+  CHECK(!r.diag.has_errors());
+}
+
+TEST(string_with_raw_newline) {
+  auto r = lex("\"hello\nworld\"");
+  CHECK_EQ(r.tokens.size(), static_cast<size_t>(2));
+  CHECK(r.tokens[0].type == TokenType::String);
+  CHECK(!r.diag.has_errors());
+  CHECK_EQ(r.tokens[0].span.begin.line, 1);
+  CHECK_EQ(r.tokens[0].span.begin.column, 1);
+  CHECK_EQ(r.tokens[0].span.end.line, 2);
+  CHECK_EQ(r.tokens[0].span.end.column, 7);
+}
+
+TEST(string_span_includes_quotes) {
+  auto r = lex("\"hello\"");
+  CHECK_EQ(r.tokens.size(), static_cast<size_t>(2));
+  CHECK(r.tokens[0].type == TokenType::String);
+  CHECK_EQ(r.tokens[0].span.begin.line, 1);
+  CHECK_EQ(r.tokens[0].span.begin.column, 1);
+  CHECK_EQ(r.tokens[0].span.end.line, 1);
+  CHECK_EQ(r.tokens[0].span.end.column, 8);
+}
+
+TEST(number_literal_edge_cases) {
+  auto r = lex("0 0.0 1.0 1000000.25");
+  CHECK_EQ(r.tokens.size(), static_cast<size_t>(5));
+  CHECK(r.tokens[0].type == TokenType::Float);
+  CHECK_EQ(r.tokens[0].float_value, 0.0);
+  CHECK(r.tokens[1].type == TokenType::Float);
+  CHECK_EQ(r.tokens[1].float_value, 0.0);
+  CHECK_EQ(r.tokens[2].float_value, 1.0);
+  CHECK_EQ(r.tokens[3].float_value, 1000000.25);
+}
+
+TEST(comment_ends_at_newline) {
+  auto r = lex("42 # comment\n43");
+  CHECK_EQ(r.tokens.size(), static_cast<size_t>(3));
+  CHECK(r.tokens[0].type == TokenType::Float);
+  CHECK_EQ(r.tokens[0].float_value, 42.0);
+  CHECK(r.tokens[1].type == TokenType::Float);
+  CHECK_EQ(r.tokens[1].float_value, 43.0);
+  CHECK_EQ(r.tokens[1].span.begin.line, 2);
+  CHECK_EQ(r.tokens[1].span.begin.column, 1);
+  CHECK(!r.diag.has_errors());
+}
+
+TEST(keyword_prefixes_remain_identifiers) {
+  auto r = lex("iff iffy thenx else_");
+  CHECK_EQ(r.tokens.size(), static_cast<size_t>(5));
+  CHECK(r.tokens[0].type == TokenType::Identifier);
+  CHECK_EQ(r.tokens[0].string_value, std::string("iff"));
+  CHECK(r.tokens[1].type == TokenType::Identifier);
+  CHECK_EQ(r.tokens[1].string_value, std::string("iffy"));
+  CHECK(r.tokens[2].type == TokenType::Identifier);
+  CHECK_EQ(r.tokens[2].string_value, std::string("thenx"));
+  CHECK(r.tokens[3].type == TokenType::Identifier);
+  CHECK_EQ(r.tokens[3].string_value, std::string("else_"));
+}
+
+TEST(unexpected_characters_recover_repeatedly) {
+  auto r = lex("@ 1 $ 2 @ 3");
+  CHECK(r.diag.has_errors());
+  CHECK_EQ(r.diag.count(Severity::Error), static_cast<size_t>(3));
+  CHECK_EQ(r.tokens.size(), static_cast<size_t>(4));
+  CHECK_EQ(r.tokens[0].float_value, 1.0);
+  CHECK_EQ(r.tokens[1].float_value, 2.0);
+  CHECK_EQ(r.tokens[2].float_value, 3.0);
+  CHECK(r.tokens[3].type == TokenType::Eof);
+}
+
+TEST(unknown_escape_reports_at_escape_location) {
+  auto r = lex("\"hello\nworld\\qtest\"");
+  CHECK(r.diag.has_errors());
+  CHECK_EQ(r.diag.count(Severity::Error), static_cast<size_t>(1));
+  std::ostringstream output;
+  r.diag.print_all(output);
+  const std::string text = output.str();
+  CHECK(text.find("<test>:2:6") != std::string::npos);
+  CHECK(text.find("hello") == std::string::npos);
+  CHECK(text.find("world\\qtest") != std::string::npos);
+  CHECK(text.find("     ^^") != std::string::npos);
+}
+
+TEST(unknown_escape_reports_at_escape_location_single_line) {
+  auto r = lex(R"("abc\qdef")");
+  CHECK(r.diag.has_errors());
+  std::ostringstream output;
+  r.diag.print_all(output);
+  const std::string text = output.str();
+  CHECK(text.find("<test>:1:5") != std::string::npos);
+  CHECK(text.find("    ^^") != std::string::npos);
+}
