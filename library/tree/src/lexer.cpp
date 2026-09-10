@@ -4,10 +4,12 @@
 #include "token.hpp"
 #include <array>
 #include <cctype>
+#include <charconv>
 #include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -174,7 +176,21 @@ private:
     tree::Token t{.type = tree::TokenType::Float,
                   .span = tree::Span(start_line, start_col, line_, col_),
                   .string_value = {}};
-    t.float_value = std::stod(std::string(num_str));
+
+    double value = 0.0;
+    const char *first = num_str.data();
+    const char *last = num_str.data() + num_str.size();
+    auto [ptr, ec] = std::from_chars(first, last, value);
+
+    if (ec != std::errc() || ptr != last) {
+      diag_.report(tree::Severity::Error,
+                   tree::Span(start_line, start_col, line_, col_),
+                   std::string("invalid numeric literal '") +
+                       std::string(num_str) + "'");
+      value = 0.0;
+    }
+
+    t.float_value = value;
     return t;
   }
 
@@ -249,14 +265,23 @@ private:
     const size_t start_idx = i_;
 
     while (!at_end() && peek() != '"') {
+      if (peek() == '\\' && i_ + 1 < source_.size()) {
+        i_++;
+        col_++;
+        if (peek() == '\n') {
+          line_++;
+          col_ = 1;
+        } else {
+          col_++;
+        }
+        i_++;
+        continue;
+      }
+
       if (peek() == '\n') {
         line_++;
         col_ = 1;
       } else {
-        col_++;
-      }
-      if (peek() == '\\' && i_ + 1 < source_.size()) {
-        i_++;
         col_++;
       }
       i_++;
@@ -303,12 +328,10 @@ private:
       return false;
     }
 
-    out = tree::Token{.type = kind,
-                      .span =
-                          tree::Span(start_line, start_col, line_,
-                                     col_ + static_cast<int>(advance_len) - 1),
-                      .string_value = {}};
     advance_pos(advance_len);
+    out = tree::Token{.type = kind,
+                      .span = tree::Span(start_line, start_col, line_, col_),
+                      .string_value = {}};
     return true;
   }
 };

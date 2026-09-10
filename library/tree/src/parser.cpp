@@ -49,7 +49,9 @@ class Parser {
 public:
   Parser(std::vector<tree::Token> tokens, tree::DiagnosticEngine &diag)
       : tokens_(std::move(tokens)), diag_(diag) {
-    prog_.arena.reserve(tokens_.size(), tokens_.size() / 4);
+    if (tokens_.empty() || tokens_.back().type != tree::TokenType::Eof) {
+      tokens_.push_back(make_eof_token());
+    }
   }
 
   tree::Program parse_program() {
@@ -65,10 +67,31 @@ public:
   }
 
 private:
+  static constexpr int K_MAX_RECURSION_DEPTH = 512;
   tree::Program prog_;
   std::vector<tree::Token> tokens_;
   tree::DiagnosticEngine &diag_;
   size_t pos_ = 0;
+  int depth_ = 0;
+
+  class DepthGuard {
+  public:
+    DepthGuard(Parser &p, tree::Span span) : p_(p) {
+      if (++p_.depth_ > K_MAX_RECURSION_DEPTH) {
+        --p_.depth_;
+        p_.error(span, "expression nested too deeply");
+      }
+    }
+    ~DepthGuard() { --p_.depth_; }
+
+    DepthGuard(const DepthGuard &) = delete;
+    DepthGuard &operator=(const DepthGuard &) = delete;
+    DepthGuard(DepthGuard &&) = delete;
+    DepthGuard &operator=(DepthGuard &&) = delete;
+
+  private:
+    Parser &p_;
+  };
 
   template <typename T, typename... Args>
   tree::ExprId make_expr(tree::Span span, Args &&...args) {
@@ -83,6 +106,12 @@ private:
   [[nodiscard]] const tree::Token &peek(size_t offset = 0) const {
     const size_t idx = pos_ + offset;
     return idx < tokens_.size() ? tokens_[idx] : tokens_.back();
+  }
+
+  static tree::Token make_eof_token() {
+    return tree::Token{.type = tree::TokenType::Eof,
+                       .span = tree::Span(0, 0, 0, 0),
+                       .string_value = {}};
   }
 
   const tree::Token &advance() {
@@ -142,6 +171,7 @@ private:
   }
 
   tree::PatternId expr_to_pattern(tree::ExprId expr_id) {
+    const DepthGuard guard(*this, prog_.arena.get(expr_id).span);
     const tree::Expr &expr = prog_.arena.get(expr_id);
     const tree::Span span = expr.span;
     if (const auto *lit = std::get_if<tree::FloatLiteral>(&expr.value)) {
@@ -196,11 +226,12 @@ private:
                 "e.g. 'f((x, y)) = ...'");
         }
         std::string name = callee_id->name;
+        const tree::Span callee_span = callee_expr.span;
         const tree::PatternId param = expr_to_pattern(call->args[0]);
         const tree::ExprId lambda =
-            make_expr<tree::Lambda>(span, std::move(name), param, body);
+            make_expr<tree::Lambda>(span, name, param, body);
         const tree::PatternId lhs =
-            make_pattern<tree::VarPattern>(callee_expr.span, callee_id->name);
+            make_pattern<tree::VarPattern>(callee_span, std::move(name));
         return make_expr<tree::Binding>(span, lhs, lambda);
       }
     }
@@ -208,7 +239,10 @@ private:
     return make_expr<tree::Binding>(span, expr_to_pattern(head), body);
   }
 
-  tree::ExprId parse_expr() { return parse_comparison(); }
+  tree::ExprId parse_expr() {
+    const DepthGuard guard(*this, peek().span);
+    return parse_comparison();
+  }
 
   tree::ExprId parse_comparison() {
     return parse_binary_level(COMPARISON_OPS, &Parser::parse_additive);
