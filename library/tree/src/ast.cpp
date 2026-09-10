@@ -55,11 +55,7 @@ ExprId Arena::clone(ExprId id) {
         return make_expr<TupleExpr>(e.span, std::move(fields));
       },
       [&](const Call &c) {
-        std::vector<ExprId> args;
-        args.reserve(c.args.size());
-        std::ranges::transform(c.args, std::back_inserter(args),
-                               [&](auto a) { return clone(a); });
-        return make_expr<Call>(e.span, clone(c.callee), std::move(args));
+        return make_expr<Call>(e.span, clone(c.callee), clone(c.arg));
       },
       [&](const BinaryExpr &b) {
         return make_expr<BinaryExpr>(e.span, b.op, clone(b.lhs), clone(b.rhs));

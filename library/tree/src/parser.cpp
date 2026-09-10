@@ -223,14 +223,9 @@ private:
       const tree::Expr &callee_expr = prog_.arena.get(call->callee);
       if (const auto *callee_id =
               std::get_if<tree::Identifier>(&callee_expr.value)) {
-        if (call->args.size() != 1) {
-          error(head_expr.span,
-                "function definition head must be a single (tuple) argument, "
-                "e.g. 'f((x, y)) = ...'");
-        }
         std::string name = callee_id->name;
         const tree::Span callee_span = callee_expr.span;
-        const tree::PatternId param = expr_to_pattern(call->args[0]);
+        const tree::PatternId param = expr_to_pattern(call->arg);
         const tree::ExprId lambda =
             make_expr<tree::Lambda>(span, name, param, body);
         const tree::PatternId lhs =
@@ -312,17 +307,17 @@ private:
   tree::ExprId parse_call(tree::ExprId callee) {
     const tree::Span start = prog_.arena.get(callee).span;
     const tree::Token open = expect(tree::TokenType::LeftParen, "'('");
-    std::vector<tree::ExprId> args;
-    if (!check(tree::TokenType::RightParen)) {
-      args.push_back(parse_expr());
-      while (match(tree::TokenType::Comma)) {
-        args.push_back(parse_expr());
-      }
+    if (check(tree::TokenType::RightParen)) {
+      error(peek().span, "function calls require exactly one parameter");
+    }
+    const tree::ExprId arg = parse_unary();
+    if (check(tree::TokenType::Comma)) {
+      error(peek().span, "function calls require exactly one parameter");
     }
     const tree::Token close =
         expect_close(tree::TokenType::RightParen, "')'", open.span, "'('");
     const tree::Span span{start.begin, close.span.end};
-    return make_expr<tree::Call>(span, callee, std::move(args));
+    return make_expr<tree::Call>(span, callee, arg);
   }
 
   tree::ExprId parse_primary() {

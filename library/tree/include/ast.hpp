@@ -81,7 +81,7 @@ struct TupleExpr {
 
 struct Call {
   ExprId callee;
-  std::vector<ExprId> args;
+  ExprId arg;
 };
 
 enum class BinaryOp : uint8_t { Add, Sub, Mul, Div, Mod, Equal, LessThan };

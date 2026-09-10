@@ -204,8 +204,8 @@ TEST(named_tuple_fields) {
     CHECK_EQ(*tup->fields[1].name, std::string("y"));
 }
 
-TEST(function_call_with_args) {
-  auto r = parse_src("add(1, 2)");
+TEST(function_call_with_tuple_arg) {
+  auto r = parse_src("add((1, 2))");
   CHECK(!r.diag.has_errors());
   const tree::Expr &e = get_expr(r.prog, r.prog.exprs[0]);
   const auto *call = require_alt<tree::Call>(e.value, "Call");
@@ -215,21 +215,35 @@ TEST(function_call_with_args) {
   const auto *id = require_alt<tree::Identifier>(callee.value, "Identifier");
   if (id != nullptr)
     CHECK_EQ(id->name, std::string("add"));
-  CHECK_EQ(call->args.size(), static_cast<size_t>(2));
+  const tree::Expr &arg = get_expr(r.prog, call->arg);
+  const auto *tuple = require_alt<tree::TupleExpr>(arg.value, "TupleExpr");
+  if (tuple == nullptr)
+    return;
+
+  CHECK_EQ(tuple->fields.size(), static_cast<size_t>(2));
 }
 
 TEST(chained_calls_are_nested) {
-  auto r = parse_src("f(1)(2)");
+  auto r = parse_src("f((1, 2))((3, 4))");
   CHECK(!r.diag.has_errors());
   const tree::Expr &e = get_expr(r.prog, r.prog.exprs[0]);
   const auto *outer = require_alt<tree::Call>(e.value, "Call");
   if (outer == nullptr)
     return;
-  CHECK_EQ(outer->args.size(), static_cast<size_t>(1));
+  const tree::Expr &outer_arg = get_expr(r.prog, outer->arg);
+  const auto *outer_tuple =
+      require_alt<tree::TupleExpr>(outer_arg.value, "TupleExpr");
+  if (outer_tuple != nullptr)
+    CHECK_EQ(outer_tuple->fields.size(), static_cast<size_t>(2));
   const tree::Expr &inner_expr = get_expr(r.prog, outer->callee);
   const auto *inner = require_alt<tree::Call>(inner_expr.value, "Call");
-  if (inner != nullptr)
-    CHECK_EQ(inner->args.size(), static_cast<size_t>(1));
+  if (inner == nullptr)
+    return;
+  const tree::Expr &inner_arg = get_expr(r.prog, inner->arg);
+  const auto *inner_tuple =
+      require_alt<tree::TupleExpr>(inner_arg.value, "TupleExpr");
+  if (inner_tuple != nullptr)
+    CHECK_EQ(inner_tuple->fields.size(), static_cast<size_t>(2));
 }
 
 TEST(call_must_be_on_same_line_as_callee) {
@@ -611,22 +625,22 @@ TEST(parentheses_override_precedence) {
     CHECK(add->op == BinaryOp::Add);
 }
 
-TEST(call_with_no_arguments) {
+TEST(call_with_no_arguments_is_invalid) {
   auto r = parse_src("f()");
-  CHECK(!r.diag.has_errors());
-  const auto *call =
-      require_alt<tree::Call>(get_expr(r.prog, r.prog.exprs[0]).value, "Call");
-  if (call != nullptr)
-    CHECK_EQ(call->args.size(), static_cast<size_t>(0));
+  CHECK(r.diag.has_errors());
 }
 
-TEST(call_with_one_argument) {
+TEST(call_with_one_unary_argument) {
   auto r = parse_src("f(42)");
   CHECK(!r.diag.has_errors());
   const auto *call =
       require_alt<tree::Call>(get_expr(r.prog, r.prog.exprs[0]).value, "Call");
-  if (call != nullptr)
-    CHECK_EQ(call->args.size(), static_cast<size_t>(1));
+  if (call == nullptr)
+    return;
+  const tree::Expr &arg = get_expr(r.prog, call->arg);
+  const auto *lit = require_alt<tree::FloatLiteral>(arg.value, "FloatLiteral");
+  if (lit != nullptr)
+    CHECK_EQ(lit->value, 42.0);
 }
 
 TEST(call_on_parenthesized_expression) {
