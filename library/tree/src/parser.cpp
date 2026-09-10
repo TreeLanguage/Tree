@@ -49,8 +49,9 @@ class Parser {
 public:
   Parser(std::vector<tree::Token> tokens, tree::DiagnosticEngine &diag)
       : tokens_(std::move(tokens)), diag_(diag) {
+    prog_.arena.reserve(tokens_.size(), tokens_.size() / 4);
     if (tokens_.empty() || tokens_.back().type != tree::TokenType::Eof) {
-      tokens_.push_back(make_eof_token());
+      tokens_.push_back(make_eof_token(tokens_));
     }
   }
 
@@ -108,9 +109,11 @@ private:
     return idx < tokens_.size() ? tokens_[idx] : tokens_.back();
   }
 
-  static tree::Token make_eof_token() {
+  static tree::Token make_eof_token(const std::vector<tree::Token> &tokens) {
+    const tree::Position pos =
+        tokens.empty() ? tree::Position{1, 1} : tokens.back().span.end;
     return tree::Token{.type = tree::TokenType::Eof,
-                       .span = tree::Span(0, 0, 0, 0),
+                       .span = tree::Span(pos, pos),
                        .string_value = {}};
   }
 
@@ -239,10 +242,7 @@ private:
     return make_expr<tree::Binding>(span, expr_to_pattern(head), body);
   }
 
-  tree::ExprId parse_expr() {
-    const DepthGuard guard(*this, peek().span);
-    return parse_comparison();
-  }
+  tree::ExprId parse_expr() { return parse_comparison(); }
 
   tree::ExprId parse_comparison() {
     return parse_binary_level(COMPARISON_OPS, &Parser::parse_additive);
@@ -283,6 +283,7 @@ private:
   }
 
   tree::ExprId parse_unary() {
+    const DepthGuard guard(*this, peek().span);
     if (check(tree::TokenType::Minus)) {
       const tree::Span start = peek().span;
       advance();

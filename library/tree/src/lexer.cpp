@@ -288,22 +288,20 @@ private:
     }
 
     const std::string_view raw = source_.substr(start_idx, i_ - start_idx);
-    if (at_end()) {
+    const bool unterminated = at_end();
+
+    if (unterminated) {
       diag_.report(tree::Severity::Error,
                    tree::Span(start_line, start_col, line_, col_),
                    "unterminated string literal");
+    } else {
+      advance_pos(1);
     }
 
     std::string decoded = decode_string_escapes(raw, start_line, start_col);
-
-    tree::Token t{.type = tree::TokenType::String,
-                  .span = tree::Span(start_line, start_col, line_, col_),
-                  .string_value = {}};
-    t.string_value = std::move(decoded);
-    if (!at_end()) {
-      advance_pos(1);
-    }
-    return t;
+    return tree::Token{.type = tree::TokenType::String,
+                       .span = tree::Span(start_line, start_col, line_, col_),
+                       .string_value = std::move(decoded)};
   }
 
   bool try_lex_operator(int start_line, int start_col, tree::Token &out) {
