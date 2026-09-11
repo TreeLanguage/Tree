@@ -284,25 +284,6 @@ TEST(lambda_multiple_params_in_parens) {
   require_alt<tree::BinaryExpr>(body.value, "BinaryExpr");
 }
 
-TEST(if_then_else) {
-  auto r = parse_src("if x then 1 else 2");
-  CHECK(!r.diag.has_errors());
-  const tree::Expr &e = get_expr(r.prog, r.prog.exprs[0]);
-  const auto *iff = require_alt<tree::IfExpr>(e.value, "IfExpr");
-  if (iff == nullptr)
-    return;
-  require_alt<tree::Identifier>(get_expr(r.prog, iff->cond).value,
-                                "Identifier");
-  const auto *then_lit = require_alt<tree::FloatLiteral>(
-      get_expr(r.prog, iff->then_branch).value, "FloatLiteral");
-  if (then_lit != nullptr)
-    CHECK_EQ(then_lit->value, 1.0);
-  const auto *else_lit = require_alt<tree::FloatLiteral>(
-      get_expr(r.prog, iff->else_branch).value, "FloatLiteral");
-  if (else_lit != nullptr)
-    CHECK_EQ(else_lit->value, 2.0);
-}
-
 TEST(simple_Binding_to_var_pattern) {
   auto r = parse_src("x = 5");
   CHECK(!r.diag.has_errors());
@@ -696,18 +677,6 @@ TEST(nested_lambdas) {
     return;
   const auto *inner =
       require_alt<tree::Lambda>(get_expr(r.prog, outer->body).value, "Lambda");
-  CHECK(inner != nullptr);
-}
-
-TEST(nested_if_expression) {
-  auto r = parse_src("if a then if b then 1 else 2 else 3");
-  CHECK(!r.diag.has_errors());
-  const auto *outer = require_alt<tree::IfExpr>(
-      get_expr(r.prog, r.prog.exprs[0]).value, "IfExpr");
-  if (outer == nullptr)
-    return;
-  const auto *inner = require_alt<tree::IfExpr>(
-      get_expr(r.prog, outer->then_branch).value, "IfExpr");
   CHECK(inner != nullptr);
 }
 

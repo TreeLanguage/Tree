@@ -98,12 +98,6 @@ struct Lambda {
   ExprId body;
 };
 
-struct IfExpr {
-  ExprId cond;
-  ExprId then_branch;
-  ExprId else_branch;
-};
-
 struct Binding {
   PatternId target;
   ExprId value;
@@ -111,7 +105,7 @@ struct Binding {
 
 struct Expr {
   std::variant<FloatLiteral, StringLiteral, Identifier, TupleExpr, Call,
-               BinaryExpr, Lambda, IfExpr, Binding>
+               BinaryExpr, Lambda, Binding>
       value;
   Span span;
 

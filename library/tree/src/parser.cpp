@@ -336,8 +336,6 @@ private:
       return parse_tuple_or_paren();
     case tree::TokenType::Backslash:
       return parse_lambda();
-    case tree::TokenType::If:
-      return parse_if();
     default:
       error(t.span, "unexpected token " + std::string(tree::to_string(t.type)));
     }
@@ -394,18 +392,6 @@ private:
     const tree::ExprId body = parse_expr();
     const tree::Span span{start.begin, prog_.arena.get(body).span.end};
     return make_expr<tree::Lambda>(span, std::nullopt, param, body);
-  }
-
-  tree::ExprId parse_if() {
-    const tree::Span start = peek().span;
-    expect(tree::TokenType::If, "'if'");
-    const tree::ExprId cond = parse_expr();
-    expect(tree::TokenType::Then, "'then'");
-    const tree::ExprId then_branch = parse_expr();
-    expect(tree::TokenType::Else, "'else'");
-    const tree::ExprId else_branch = parse_expr();
-    const tree::Span span{start.begin, prog_.arena.get(else_branch).span.end};
-    return make_expr<tree::IfExpr>(span, cond, then_branch, else_branch);
   }
 };
 } // namespace

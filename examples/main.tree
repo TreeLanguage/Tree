@@ -1,62 +1,58 @@
-# Arithmetic
+@[ Arithmetic ]@
 add((x, y)) = x + y
-add((3, 4)) # => 7
+add((3, 4)) @[ => 7 ]@
 
-# Tuple construction
+@[ Tuple construction ]@
 pair = (1, 2)
 triple = (1, 2, 3)
 
-# Access by position
+@[ Access by position ]@
 (first, second) = pair
-first   # => 1
-second  # => 2
+first   @[ => 1 ]@
+second  @[ => 2 ]@
 
 (_, _, third) = triple
-third   # => 3
+third   @[ => 3 ]@
 
-# Named fields
+@[ Named fields ]@
 point = (x: 10, y: 20)
 (x: px, _) = point
-px  # => 10
+px  @[ => 10 ]@
 
-# Factorial
+@[ Factorial ]@
 factorial(0) = 1
 factorial(n) = n * factorial((n - 1))
 
-factorial(5)  # => 120
+factorial(5)  @[ => 120 ]@
 
-# Fibonacci with accumulation
+@[ Fibonacci with accumulation ]@
 fibAcc((0, (a, b))) = a
 fibAcc((n, (a, b))) = fibAcc((n - 1, (b, a + b)))
 
 fib(n) = fibAcc((n, (0, 1)))
-fib(10)  # => 55
+fib(10)  @[ => 55 ]@
 
-# Sum a list (nested tuples)
+@[ Sum a list (nested tuples) ]@
 sumList(()) = 0
 sumList((x, rest)) = x + sumList(rest)
 
-sumList((1, (2, (3, (4, ())))))  # => 10
+sumList((1, (2, (3, (4, ())))))  @[ => 10 ]@
 
-# Person record
+@[ Person record ]@
 person = (name: "Alice", age: 30, email: "alice@example.com")
 (name: name, _) = person
-name  # => "Alice"
+name  @[ => "Alice" ]@
 
-# Destructure selectively
+@[ Destructure selectively ]@
 (name: n, age: a, _) = person
-n  # => "Alice"
-a  # => 30
+n  @[ => "Alice" ]@
+a  @[ => 30 ]@ 
 
-# Update pattern (immutable)
+@[ Update pattern (immutable) ]@
 (name: n, age: a, email: e, _) = person
 older = (name: n, age: a + 1, email: e)
 (age: olderAge, _) = older
-olderAge  # => 31
-
-# Function with record
-greet((name: n, _)) = "Hello, " + n
-greet((person))  # => "Hello, Alice"
+olderAge  @[ => 31 ]@
 
 user = (
   name: "Bob",
@@ -74,16 +70,16 @@ user = (
 (address: address, contact: contact, _) = user
 (city: city, _) = address
 (email: email, phone: phone, _) = contact
-city   # => "NYC"
-email  # => "bob@example.com"
-phone  # => "555-1234"
+city   @[ => "NYC" ]@
+email  @[ => "bob@example.com" ]@
+phone  @[ => "555-1234" ]@
 
-# Deep destructuring
+@[ Deep destructuring ]@
 (name: n, address: (city: c, _), _) = user
-n  # => "Bob"
-c  # => "NYC"
+n  @[ => "Bob" ]@
+c  @[ => "NYC" ]@
 
-# Tree: (value, left, right)
+@[ Tree: (value, left, right) ]@
 tree = (
   value: 5,
   left: (
@@ -98,37 +94,36 @@ tree = (
   )
 )
 
-# Sum all values
+@[ Sum all values ]@
 treeSum(()) = 0
 treeSum((value: v, left: l, right: r)) = v + treeSum(l) + treeSum(r)
-treeSum((tree))  # => 29
+treeSum((tree))  @[ => 29 ]@
 
-# List: (head, tail)
+@[ List: (head, tail) ]@
 list = (1, (2, (3, (4, ()))))
 
-# Length
+@[ Length ]@
 len(()) = 0
 len((_, tail)) = 1 + len(tail)
-len((list))  # => 4
+len((list))  @[ => 4 ]@
 
-# Reverse with accumulator
+@[ Reverse with accumulator ]@
 revAcc(((), acc)) = acc
 revAcc(((h, t), acc)) = revAcc((t, (h, acc)))
 
 reverse((lst)) = revAcc((lst, ()))
-reverse((list))  # => (4, (3, (2, (1, ()))))
+reverse((list))  @[ => (4, (3, (2, (1, ())))) ]@
 
-# Map
+@[ Map ]@
 mapList((_, ())) = ()
 mapList((f, (h, t))) = (f(h), mapList((f, t)))
 
 double = mapList((\x -> x * 2, list))
-double # => (2, (4, (6, (8, ()))))
+double @[ => (2, (4, (6, (8, ())))) ]@
 
-# Filter
+@[ Filter ]@
 filterList((_, ())) = ()
-filterList((pred, (h, t))) =
-  if pred(h) then
-    (h, filterList((pred, t)))
-  else
-    filterList((pred, t))
+filterList((pred, (h, t))) = select((pred(h), h, filterList((pred, t))))
+
+select((0, h, rest))  = (h, rest)
+select((1, h, rest)) = rest

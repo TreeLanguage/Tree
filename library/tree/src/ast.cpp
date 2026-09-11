@@ -64,10 +64,6 @@ ExprId Arena::clone(ExprId id) {
         return make_expr<Lambda>(e.span, std::optional<std::string>(l.name),
                                  clone(l.param), clone(l.body));
       },
-      [&](const IfExpr &i) {
-        return make_expr<IfExpr>(e.span, clone(i.cond), clone(i.then_branch),
-                                 clone(i.else_branch));
-      },
       [&](const Binding &a) {
         return make_expr<Binding>(e.span, clone(a.target), clone(a.value));
       });

@@ -15,15 +15,6 @@
 #include <vector>
 
 namespace {
-const std::unordered_map<std::string_view, tree::TokenType> &keywords() {
-  static const std::unordered_map<std::string_view, tree::TokenType> MAP = {
-      {"if", tree::TokenType::If},
-      {"then", tree::TokenType::Then},
-      {"else", tree::TokenType::Else},
-  };
-  return MAP;
-}
-
 const std::unordered_map<std::string_view, tree::TokenType> &double_ops() {
   static const std::unordered_map<std::string_view, tree::TokenType> MAP = {
       {"==", tree::TokenType::Equal},
@@ -79,7 +70,7 @@ public:
       }
 
       if ((std::isalpha(static_cast<unsigned char>(c)) != 0) || c == '_') {
-        out.push_back(lex_identifier_or_keyword(start_line, start_col));
+        out.push_back(lex_identifier(start_line, start_col));
         continue;
       }
 
@@ -146,10 +137,24 @@ private:
         advance_pos(1, '\n');
       } else if (std::isspace(static_cast<unsigned char>(c)) != 0) {
         advance_pos(1);
-      } else if (c == '#') {
-        while (!at_end() && peek() != '\n') {
-          advance_pos(1);
+      } else if (c == '@' && peek(1) == '[') {
+        const int start_line = line_;
+        const int start_col = col_;
+        advance_pos(2);
+        while (!at_end() && (peek() != ']' || peek(1) != '@')) {
+          if (peek() == '\n') {
+            advance_pos(1, '\n');
+          } else {
+            advance_pos(1);
+          }
         }
+        if (at_end()) {
+          diag_.report(tree::Severity::Error,
+                       tree::Span(start_line, start_col, line_, col_),
+                       "unterminated block comment");
+          break;
+        }
+        advance_pos(2);
       } else {
         break;
       }
@@ -194,7 +199,7 @@ private:
     return t;
   }
 
-  tree::Token lex_identifier_or_keyword(int start_line, int start_col) {
+  tree::Token lex_identifier(int start_line, int start_col) {
     const size_t start_idx = i_;
     while (!at_end() &&
            ((std::isalnum(static_cast<unsigned char>(peek())) != 0) ||
@@ -205,13 +210,8 @@ private:
 
     tree::Token t;
     t.span = tree::Span(start_line, start_col, line_, col_);
-    auto it = keywords().find(id);
-    if (it != keywords().end()) {
-      t.type = it->second;
-    } else {
-      t.type = tree::TokenType::Identifier;
-      t.string_value = std::string(id);
-    }
+    t.type = tree::TokenType::Identifier;
+    t.string_value = std::string(id);
     return t;
   }
 

@@ -38,12 +38,6 @@ std::string_view to_string(TokenType type) noexcept {
     return "Percent";
   case TokenType::Arrow:
     return "Arrow";
-  case TokenType::If:
-    return "If";
-  case TokenType::Then:
-    return "Then";
-  case TokenType::Else:
-    return "Else";
   case TokenType::Eof:
     return "Eof";
   default:

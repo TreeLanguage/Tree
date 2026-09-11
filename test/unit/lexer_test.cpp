@@ -43,7 +43,7 @@ TEST(empty_source_yields_only_eof) {
 }
 
 TEST(whitespace_and_comments_are_skipped) {
-  auto r = lex("   \n\t # this is a comment\n   ");
+  auto r = lex("   \n\t @[ this is a comment ]@\n   ");
   CHECK_EQ(r.tokens.size(), static_cast<size_t>(1));
   expect_trailing_eof(r.tokens);
   CHECK(!r.diag.has_errors());
@@ -69,14 +69,6 @@ TEST(identifier) {
   CHECK_EQ(r.tokens.size(), static_cast<size_t>(2));
   CHECK(r.tokens[0].type == TokenType::Identifier);
   CHECK_EQ(r.tokens[0].string_value, std::string("foo_bar1"));
-}
-
-TEST(keywords_if_then_else) {
-  auto r = lex("if then else");
-  CHECK_EQ(r.tokens.size(), static_cast<size_t>(4));
-  CHECK(r.tokens[0].type == TokenType::If);
-  CHECK(r.tokens[1].type == TokenType::Then);
-  CHECK(r.tokens[2].type == TokenType::Else);
 }
 
 TEST(keyword_prefix_is_still_identifier) {
@@ -167,8 +159,8 @@ TEST(unexpected_character_does_not_stop_lexing) {
 }
 
 TEST(span_tracks_line_and_column) {
-  auto r = lex("if\nfoo");
-  CHECK(r.tokens[0].type == TokenType::If);
+  auto r = lex("bar\nfoo");
+  CHECK(r.tokens[0].type == TokenType::Identifier);
   CHECK_EQ(r.tokens[0].span.begin.line, 1);
   CHECK_EQ(r.tokens[0].span.begin.column, 1);
 
@@ -178,12 +170,12 @@ TEST(span_tracks_line_and_column) {
 }
 
 TEST(small_program) {
-  auto r = lex(R"(if x == 1 then "yes" else "no")");
+  auto r = lex(R"(select(x == 1, "yes", "no"))");
   std::vector<TokenType> expected = {
-      TokenType::If,    TokenType::Identifier, TokenType::Equal,
-      TokenType::Float, TokenType::Then,       TokenType::String,
-      TokenType::Else,  TokenType::String,     TokenType::Eof};
-
+      TokenType::Identifier, TokenType::LeftParen, TokenType::Identifier,
+      TokenType::Equal,      TokenType::Float,     TokenType::Comma,
+      TokenType::String,     TokenType::Comma,     TokenType::String,
+      TokenType::RightParen, TokenType::Eof};
   CHECK_EQ(r.tokens.size(), expected.size());
   for (size_t idx = 0; idx < expected.size() && idx < r.tokens.size(); ++idx) {
     CHECK(r.tokens[idx].type == expected[idx]);
@@ -287,14 +279,14 @@ TEST(number_literal_edge_cases) {
 }
 
 TEST(comment_ends_at_newline) {
-  auto r = lex("42 # comment\n43");
+  auto r = lex("42 @[ comment ]@\n 43");
   CHECK_EQ(r.tokens.size(), static_cast<size_t>(3));
   CHECK(r.tokens[0].type == TokenType::Float);
   CHECK_EQ(r.tokens[0].float_value, 42.0);
   CHECK(r.tokens[1].type == TokenType::Float);
   CHECK_EQ(r.tokens[1].float_value, 43.0);
   CHECK_EQ(r.tokens[1].span.begin.line, 2);
-  CHECK_EQ(r.tokens[1].span.begin.column, 1);
+  CHECK_EQ(r.tokens[1].span.begin.column, 2);
   CHECK(!r.diag.has_errors());
 }
 
