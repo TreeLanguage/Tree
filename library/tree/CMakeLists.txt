@@ -1,4 +1,5 @@
 add_library(treelib STATIC
+    src/reslover.cpp
     src/ast.cpp
     src/diagnostic.cpp
     src/lexer.cpp
