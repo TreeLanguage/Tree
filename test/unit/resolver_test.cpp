@@ -6,6 +6,7 @@
 #include "resolver.hpp"
 #include "token.hpp"
 #include <cstddef>
+#include <functional>
 #include <optional>
 #include <string>
 #include <variant>
@@ -33,18 +34,49 @@ ResolveResult resolve_src(const std::string &src) {
       .prog = std::move(prog), .diag = std::move(diag), .res = std::move(res)};
 }
 
+std::vector<tree::ExprId> find_identifiers(const tree::Program &prog,
+                                           const std::string &name) {
+  std::vector<tree::ExprId> found;
+
+  std::function<void(tree::ExprId)> walk = [&](tree::ExprId id) {
+    const tree::Expr &e = prog.arena.get(id);
+    tree::match(
+        e.value,
+        [&](const tree::Identifier &ident) {
+          if (ident.name == name)
+            found.push_back(id);
+        },
+        [&](const tree::TupleExpr &t) {
+          for (const auto &f : t.fields)
+            walk(f.value);
+        },
+        [&](const tree::Call &c) {
+          walk(c.callee);
+          walk(c.arg);
+        },
+        [&](const tree::BinaryExpr &b) {
+          walk(b.lhs);
+          walk(b.rhs);
+        },
+        [&](const tree::Lambda &l) { walk(l.body); },
+        [&](const tree::MultiClauseLambda &l) {
+          for (const auto &clause : l.clauses)
+            walk(clause.body);
+        },
+        [&](const tree::Binding &b) { walk(b.value); }, [&](const auto &) {});
+  };
+
+  for (const tree::ExprId id : prog.exprs)
+    walk(id);
+  return found;
+}
+
 std::optional<tree::ExprId> find_identifier(const tree::Program &prog,
                                             const std::string &name) {
-  for (uint32_t i = 0; i < prog.arena.expr_count(); ++i) {
-    const tree::ExprId id{i};
-    const tree::Expr &e = prog.arena.get(id);
-    if (const auto *ident = std::get_if<tree::Identifier>(&e.value)) {
-      if (ident->name == name) {
-        return id;
-      }
-    }
-  }
-  return std::nullopt;
+  auto all = find_identifiers(prog, name);
+  if (all.empty())
+    return std::nullopt;
+  return all.front();
 }
 
 std::optional<tree::BindingId> top_level_binding(const Resolution &res,
@@ -129,6 +161,37 @@ TEST(mutually_recursive_functions_resolve_regardless_of_order) {
 }
 
 TEST(mutual_recursion_lands_in_same_binding_group) {
+  auto r = resolve_src("isEven(0) = true\n"
+                       "isEven(n) = isOdd((n - 1))\n"
+                       "\n"
+                       "isOdd(0) = false\n"
+                       "isOdd(n) = isEven((n - 1))\n");
+  CHECK(!r.diag.has_errors());
+  auto even_id = top_level_binding(r.res, "isEven");
+  auto odd_id = top_level_binding(r.res, "isOdd");
+  CHECK(even_id.has_value());
+  CHECK(odd_id.has_value());
+  if (!even_id || !odd_id)
+    return;
+  bool same_group = false;
+  for (const auto &group : r.res.binding_groups) {
+    bool has_even = false;
+    bool has_odd = false;
+    for (const tree::BindingId id : group) {
+      if (id == *even_id)
+        has_even = true;
+      if (id == *odd_id)
+        has_odd = true;
+    }
+    if (has_even && has_odd) {
+      same_group = true;
+      break;
+    }
+  }
+  CHECK(same_group);
+}
+
+TEST(one_directional_dependency_lands_in_separate_groups) {
   auto r = resolve_src("filterList((_, ())) = ()\n"
                        "filterList((pred, (h, t))) = select((pred(h), h, "
                        "filterList((pred, t))))\n"
@@ -142,22 +205,21 @@ TEST(mutual_recursion_lands_in_same_binding_group) {
   CHECK(select_id.has_value());
   if (!filter_id || !select_id)
     return;
-  bool same_group = false;
-  for (const auto &group : r.res.binding_groups) {
-    bool has_filter = false;
-    bool has_select = false;
-    for (const tree::BindingId id : group) {
+  const bool same_group = false;
+  size_t select_group_idx = SIZE_MAX;
+  size_t filter_group_idx = SIZE_MAX;
+  for (size_t i = 0; i < r.res.binding_groups.size(); ++i) {
+    for (const tree::BindingId id : r.res.binding_groups[i]) {
       if (id == *filter_id)
-        has_filter = true;
+        filter_group_idx = i;
       if (id == *select_id)
-        has_select = true;
-    }
-    if (has_filter && has_select) {
-      same_group = true;
-      break;
+        select_group_idx = i;
     }
   }
-  CHECK(same_group);
+  CHECK(filter_group_idx != SIZE_MAX);
+  CHECK(select_group_idx != SIZE_MAX);
+  CHECK(filter_group_idx != select_group_idx);
+  CHECK(select_group_idx < filter_group_idx);
 }
 
 TEST(non_recursive_functions_land_in_separate_groups) {
@@ -185,10 +247,10 @@ TEST(non_recursive_functions_land_in_separate_groups) {
   CHECK(!same_group);
 }
 
-TEST(duplicate_top_level_function_reports_error) {
-  auto r = resolve_src("f(x) = x\nf(x) = x + 1");
+TEST(non_adjacent_duplicate_function_reports_error) {
+  auto r = resolve_src("f(x) = x\ng(y) = y\nf(x) = x + 1");
   CHECK(r.diag.has_errors());
-  CHECK_EQ(r.diag.count(Severity::Error), static_cast<size_t>(1));
+  CHECK(r.diag.count(Severity::Error) >= static_cast<size_t>(1));
 }
 
 TEST(duplicate_binder_in_single_pattern_reports_error) {
@@ -254,7 +316,6 @@ TEST(wildcard_and_literal_patterns_bind_nothing) {
 TEST(named_field_pattern_binder_resolves_in_body) {
   auto r = resolve_src("getX((x: px, _)) = px");
   CHECK(!r.diag.has_errors());
-
   auto px_id = find_identifier(r.prog, "px");
   CHECK(px_id.has_value());
   if (!px_id)

@@ -316,7 +316,6 @@ private:
       if (index[i] == -1)
         strongconnect(i);
     }
-    std::ranges::reverse(res_.binding_groups);
   }
 };
 
