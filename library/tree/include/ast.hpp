@@ -164,8 +164,8 @@ public:
     patterns_.reserve(pattern_hint);
   }
 
-  ExprId clone(ExprId id);
-  PatternId clone(PatternId id);
+  ExprId clone(const Arena &src, ExprId id);
+  PatternId clone(const Arena &src, PatternId id);
 
 private:
   std::vector<Expr> exprs_;

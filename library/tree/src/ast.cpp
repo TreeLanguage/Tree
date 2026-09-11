@@ -187,8 +187,8 @@ void print_expr(const tree::Arena &arena, tree::ExprId id, std::string &out,
 
 namespace tree {
 
-PatternId Arena::clone(PatternId id) {
-  const Pattern &p = get(id);
+PatternId Arena::clone(const Arena &src, PatternId id) {
+  const Pattern &p = src.get(id);
   return match(
       p.value,
       [&](const WildcardPattern &) {
@@ -212,14 +212,14 @@ PatternId Arena::clone(PatternId id) {
         std::ranges::transform(
             t.fields, std::back_inserter(fields), [&](const auto &f) {
               return TuplePatternField{.name = f.name,
-                                       .pattern = clone(f.pattern)};
+                                       .pattern = clone(src, f.pattern)};
             });
         return make_pattern<TuplePattern>(p.span, std::move(fields));
       });
 }
 
-ExprId Arena::clone(ExprId id) {
-  const Expr &e = get(id);
+ExprId Arena::clone(const Arena &src, ExprId id) {
+  const Expr &e = src.get(id);
   return match(
       e.value,
       [&](const FloatLiteral &f) {
@@ -239,31 +239,34 @@ ExprId Arena::clone(ExprId id) {
         fields.reserve(t.fields.size());
         std::ranges::transform(
             t.fields, std::back_inserter(fields), [&](const auto &f) {
-              return TupleExprField{.name = f.name, .value = clone(f.value)};
+              return TupleExprField{.name = f.name,
+                                    .value = clone(src, f.value)};
             });
         return make_expr<TupleExpr>(e.span, std::move(fields));
       },
       [&](const Call &c) {
-        return make_expr<Call>(e.span, clone(c.callee), clone(c.arg));
+        return make_expr<Call>(e.span, clone(src, c.callee), clone(src, c.arg));
       },
       [&](const BinaryExpr &b) {
-        return make_expr<BinaryExpr>(e.span, b.op, clone(b.lhs), clone(b.rhs));
+        return make_expr<BinaryExpr>(e.span, b.op, clone(src, b.lhs),
+                                     clone(src, b.rhs));
       },
       [&](const Lambda &l) {
         return make_expr<Lambda>(e.span, std::optional<std::string>(l.name),
-                                 clone(l.param), clone(l.body));
+                                 clone(src, l.param), clone(src, l.body));
       },
       [&](const Binding &a) {
-        return make_expr<Binding>(e.span, clone(a.target), clone(a.value));
+        return make_expr<Binding>(e.span, clone(src, a.target),
+                                  clone(src, a.value));
       },
       [&](const MultiClauseLambda &m) {
         std::vector<LambdaClause> clauses;
         clauses.reserve(m.clauses.size());
-        std::ranges::transform(m.clauses, std::back_inserter(clauses),
-                               [&](const auto &c) {
-                                 return LambdaClause{.param = clone(c.param),
-                                                     .body = clone(c.body)};
-                               });
+        std::ranges::transform(
+            m.clauses, std::back_inserter(clauses), [&](const auto &c) {
+              return LambdaClause{.param = clone(src, c.param),
+                                  .body = clone(src, c.body)};
+            });
         return make_expr<MultiClauseLambda>(
             e.span, std::optional<std::string>(m.name), std::move(clauses));
       });
@@ -272,8 +275,9 @@ ExprId Arena::clone(ExprId id) {
 Program clone(const Program &prog) {
   Program result;
   result.exprs.reserve(prog.exprs.size());
-  std::ranges::transform(prog.exprs, std::back_inserter(result.exprs),
-                         [&](auto id) { return result.arena.clone(id); });
+  std::ranges::transform(
+      prog.exprs, std::back_inserter(result.exprs),
+      [&](ExprId id) { return result.arena.clone(prog.arena, id); });
   return result;
 }
 
