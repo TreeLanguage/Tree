@@ -1,3 +1,11 @@
+FetchContent_Declare(
+    lsp
+    GIT_REPOSITORY https://github.com/leon-bckl/lsp-framework.git
+    GIT_TAG 1.3.1
+)
+
+FetchContent_MakeAvailable(lsp)
+
 add_library(treelib STATIC
     src/reslover.cpp
     src/ast.cpp
@@ -7,6 +15,8 @@ add_library(treelib STATIC
     src/span.cpp
     src/token.cpp
 )
+
+target_link_libraries(treelib PRIVATE lsp)
 
 target_include_directories(treelib
     PUBLIC

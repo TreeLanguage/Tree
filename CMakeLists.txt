@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(TREE_CONFIG_DIR "${CMAKE_BINARY_DIR}/generated")
 
 include(GNUInstallDirs)
+include(FetchContent)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     option(ENABLE_ASAN "Build with Sanitizer" ON)
