@@ -9,6 +9,7 @@
 #include <iterator>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 
@@ -64,6 +65,7 @@ public:
         synchronize(start_pos);
       }
     }
+    merge_clauses();
     return std::move(prog_);
   }
 
@@ -107,6 +109,102 @@ private:
   [[nodiscard]] const tree::Token &peek(size_t offset = 0) const {
     const size_t idx = pos_ + offset;
     return idx < tokens_.size() ? tokens_[idx] : tokens_.back();
+  }
+
+  void merge_clauses() {
+    std::vector<tree::ExprId> merged;
+    merged.reserve(prog_.exprs.size());
+    std::unordered_set<std::string> closed_names;
+
+    size_t i = 0;
+    while (i < prog_.exprs.size()) {
+      const std::string *name = lambda_binding_name(prog_.exprs[i]);
+      if (name == nullptr) {
+        merged.push_back(prog_.exprs[i]);
+        ++i;
+        continue;
+      }
+
+      const std::string group_name = *name;
+      const tree::Span first_span = prog_.arena.get(prog_.exprs[i]).span;
+
+      if (closed_names.contains(group_name)) {
+        std::string message;
+        message.reserve(64 + (group_name.size() * 2));
+        message += "clauses of function '";
+        message += group_name;
+        message += "' must be adjacent; an earlier group for '";
+        message += group_name;
+        message += "' was already closed";
+        diag_.report(tree::Severity::Error, first_span, std::move(message));
+      }
+
+      std::vector<tree::LambdaClause> clauses;
+      tree::Span last_span = first_span;
+      const tree::Span target_span =
+          std::get<tree::Binding>(prog_.arena.get(prog_.exprs[i]).value)
+                  .target.valid()
+              ? prog_.arena
+                    .get(std::get<tree::Binding>(
+                             prog_.arena.get(prog_.exprs[i]).value)
+                             .target)
+                    .span
+              : first_span;
+
+      size_t j = i;
+      while (j < prog_.exprs.size()) {
+        const std::string *next_name = lambda_binding_name(prog_.exprs[j]);
+        if (next_name == nullptr || *next_name != group_name) {
+          break;
+        }
+        const auto &binding =
+            std::get<tree::Binding>(prog_.arena.get(prog_.exprs[j]).value);
+        const auto &lambda =
+            std::get<tree::Lambda>(prog_.arena.get(binding.value).value);
+        clauses.push_back(
+            tree::LambdaClause{.param = lambda.param, .body = lambda.body});
+        last_span = prog_.arena.get(prog_.exprs[j]).span;
+        ++j;
+      }
+
+      closed_names.insert(group_name);
+
+      if (clauses.size() == 1) {
+        merged.push_back(prog_.exprs[i]);
+        i = j;
+        continue;
+      }
+
+      const tree::Span span{first_span.begin, last_span.end};
+      const tree::ExprId multi = prog_.arena.make_expr<tree::MultiClauseLambda>(
+          span, std::optional<std::string>(group_name), std::move(clauses));
+      const tree::PatternId lhs =
+          prog_.arena.make_pattern<tree::VarPattern>(target_span, group_name);
+      merged.push_back(prog_.arena.make_expr<tree::Binding>(span, lhs, multi));
+      i = j;
+    }
+
+    prog_.exprs = std::move(merged);
+  }
+
+  [[nodiscard]] const std::string *lambda_binding_name(tree::ExprId id) const {
+    const auto *binding =
+        std::get_if<tree::Binding>(&prog_.arena.get(id).value);
+    if (binding == nullptr) {
+      return nullptr;
+    }
+    const auto *var =
+        std::get_if<tree::VarPattern>(&prog_.arena.get(binding->target).value);
+    if (var == nullptr) {
+      return nullptr;
+    }
+    const auto *lambda =
+        std::get_if<tree::Lambda>(&prog_.arena.get(binding->value).value);
+    if (lambda == nullptr || !lambda->name.has_value() ||
+        *lambda->name != var->name) {
+      return nullptr;
+    }
+    return &var->name;
   }
 
   static tree::Token make_eof_token(const std::vector<tree::Token> &tokens) {
@@ -182,6 +280,9 @@ private:
     }
     if (const auto *lit = std::get_if<tree::StringLiteral>(&expr.value)) {
       return make_pattern<tree::StringPattern>(span, lit->value);
+    }
+    if (const auto *lit = std::get_if<tree::BoolLiteral>(&expr.value)) {
+      return make_pattern<tree::BoolPattern>(span, lit->value);
     }
     if (const auto *id = std::get_if<tree::Identifier>(&expr.value)) {
       if (id->name == "_") {
@@ -329,6 +430,9 @@ private:
     case tree::TokenType::String:
       advance();
       return make_expr<tree::StringLiteral>(t.span, t.string_value);
+    case tree::TokenType::Bool:
+      advance();
+      return make_expr<tree::BoolLiteral>(t.span, t.string_value == "true");
     case tree::TokenType::Identifier:
       advance();
       return make_expr<tree::Identifier>(t.span, t.string_value);

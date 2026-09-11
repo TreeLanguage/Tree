@@ -37,6 +37,10 @@ struct StringPattern {
   std::string value;
 };
 
+struct BoolPattern {
+  bool value;
+};
+
 struct TuplePatternField {
   std::optional<std::string> name;
   PatternId pattern;
@@ -48,7 +52,7 @@ struct TuplePattern {
 
 struct Pattern {
   std::variant<WildcardPattern, VarPattern, FloatPattern, StringPattern,
-               TuplePattern>
+               BoolPattern, TuplePattern>
       value;
   Span span;
 
@@ -64,6 +68,10 @@ struct FloatLiteral {
 
 struct StringLiteral {
   std::string value;
+};
+
+struct BoolLiteral {
+  bool value;
 };
 
 struct Identifier {
@@ -98,14 +106,24 @@ struct Lambda {
   ExprId body;
 };
 
+struct LambdaClause {
+  PatternId param;
+  ExprId body;
+};
+
+struct MultiClauseLambda {
+  std::optional<std::string> name;
+  std::vector<LambdaClause> clauses;
+};
+
 struct Binding {
   PatternId target;
   ExprId value;
 };
 
 struct Expr {
-  std::variant<FloatLiteral, StringLiteral, Identifier, TupleExpr, Call,
-               BinaryExpr, Lambda, Binding>
+  std::variant<FloatLiteral, StringLiteral, BoolLiteral, Identifier, TupleExpr,
+               Call, BinaryExpr, Lambda, Binding, MultiClauseLambda>
       value;
   Span span;
 
@@ -160,6 +178,9 @@ struct Program {
 };
 
 Program clone(const Program &prog);
+std::string to_string(const Arena &arena, ExprId id);
+std::string to_string(const Arena &arena, PatternId id);
+std::string to_string(const Program &prog);
 
 template <typename... Fs> struct Overloaded : Fs... {
   using Fs::operator()...;

@@ -125,5 +125,5 @@ double @[ => (2, (4, (6, (8, ())))) ]@
 filterList((_, ())) = ()
 filterList((pred, (h, t))) = select((pred(h), h, filterList((pred, t))))
 
-select((0, h, rest))  = (h, rest)
-select((1, h, rest)) = rest
+select((false, h, rest))  = (h, rest)
+select((true, h, rest)) = rest

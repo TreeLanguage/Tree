@@ -9,6 +9,7 @@ namespace tree {
 enum class TokenType : uint8_t {
   Float,
   String,
+  Bool,
   Identifier,
   LeftParen,
   RightParen,
@@ -24,9 +25,6 @@ enum class TokenType : uint8_t {
   Slash,
   Percent,
   Arrow,
-  If,
-  Then,
-  Else,
   Eof
 };
 

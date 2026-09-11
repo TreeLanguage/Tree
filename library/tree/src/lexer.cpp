@@ -15,6 +15,12 @@
 #include <vector>
 
 namespace {
+const std::unordered_map<std::string_view, tree::TokenType> &keywords() {
+  static const std::unordered_map<std::string_view, tree::TokenType> MAP = {
+      {"true", tree::TokenType::Bool}, {"false", tree::TokenType::Bool}};
+  return MAP;
+}
+
 const std::unordered_map<std::string_view, tree::TokenType> &double_ops() {
   static const std::unordered_map<std::string_view, tree::TokenType> MAP = {
       {"==", tree::TokenType::Equal},
@@ -70,7 +76,7 @@ public:
       }
 
       if ((std::isalpha(static_cast<unsigned char>(c)) != 0) || c == '_') {
-        out.push_back(lex_identifier(start_line, start_col));
+        out.push_back(lex_identifier_or_keyword(start_line, start_col));
         continue;
       }
 
@@ -199,7 +205,7 @@ private:
     return t;
   }
 
-  tree::Token lex_identifier(int start_line, int start_col) {
+  tree::Token lex_identifier_or_keyword(int start_line, int start_col) {
     const size_t start_idx = i_;
     while (!at_end() &&
            ((std::isalnum(static_cast<unsigned char>(peek())) != 0) ||
@@ -210,8 +216,14 @@ private:
 
     tree::Token t;
     t.span = tree::Span(start_line, start_col, line_, col_);
-    t.type = tree::TokenType::Identifier;
-    t.string_value = std::string(id);
+    auto it = keywords().find(id);
+    if (it != keywords().end()) {
+      t.type = it->second;
+      t.string_value = std::string(id);
+    } else {
+      t.type = tree::TokenType::Identifier;
+      t.string_value = std::string(id);
+    }
     return t;
   }
 
