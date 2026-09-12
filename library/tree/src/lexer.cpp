@@ -1,7 +1,7 @@
-#include "lexer.hpp"
-#include "diagnostic.hpp"
-#include "span.hpp"
-#include "token.hpp"
+#include "lexer.h"
+#include "diagnostic.h"
+#include "span.h"
+#include "token.h"
 #include <array>
 #include <cctype>
 #include <charconv>
@@ -371,6 +371,7 @@ private:
 };
 
 } // namespace
+
 
 namespace tree {
 std::vector<Token> lexer(std::string_view source, DiagnosticEngine &diag) {

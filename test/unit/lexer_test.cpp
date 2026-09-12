@@ -1,8 +1,8 @@
-#include "diagnostic.hpp"
-#include "framework.hpp"
-#include "lexer.hpp"
-#include "span.hpp"
-#include "token.hpp"
+#include "diagnostic.h"
+#include "framework.h"
+#include "lexer.h"
+#include "span.h"
+#include "token.h"
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -34,6 +34,7 @@ void expect_trailing_eof(const std::vector<Token> &tokens) {
 }
 
 } // namespace
+
 
 TEST(empty_source_yields_only_eof) {
   auto r = lex("");

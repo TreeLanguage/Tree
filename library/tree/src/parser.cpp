@@ -1,8 +1,8 @@
-#include "parser.hpp"
-#include "ast.hpp"
-#include "diagnostic.hpp"
-#include "span.hpp"
-#include "token.hpp"
+#include "parser.h"
+#include "ast.h"
+#include "diagnostic.h"
+#include "span.h"
+#include "token.h"
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace {
 constexpr std::array<std::pair<tree::TokenType, tree::BinaryOp>, 2>

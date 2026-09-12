@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ast.hpp"
+#include "ast.h"
 #include <vector>
 
 namespace tree {

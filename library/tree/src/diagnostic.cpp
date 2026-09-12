@@ -1,4 +1,4 @@
-#include "diagnostic.hpp"
+#include "diagnostic.h"
 #include <algorithm>
 #include <compare>
 #include <iterator>

@@ -1,4 +1,4 @@
-#include "ast.hpp"
+#include "ast.h"
 #include <algorithm>
 #include <cmath>
 #include <iterator>

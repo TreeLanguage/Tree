@@ -1,7 +1,7 @@
-#include "ast.hpp"
-#include "diagnostic.hpp"
-#include "resolver.hpp"
-#include "span.hpp"
+#include "ast.h"
+#include "diagnostic.h"
+#include "resolver.h"
+#include "span.h"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>

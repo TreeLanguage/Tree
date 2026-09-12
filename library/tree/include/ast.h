@@ -1,6 +1,6 @@
 #pragma once
 
-#include "span.hpp"
+#include "span.h"
 #include <cstddef>
 #include <cstdint>
 #include <optional>

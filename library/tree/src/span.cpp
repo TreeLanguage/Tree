@@ -1,4 +1,4 @@
-#include "span.hpp"
+#include "span.h"
 
 namespace tree {
 std::ostream &operator<<(std::ostream &os, const Position &pos) {

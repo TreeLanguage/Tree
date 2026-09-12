@@ -1,13 +1,14 @@
-#include "ast.hpp"
-#include "diagnostic.hpp"
-#include "framework.hpp"
-#include "lexer.hpp"
-#include "parser.hpp"
-#include "token.hpp"
+#include "ast.h"
+#include "diagnostic.h"
+#include "framework.h"
+#include "lexer.h"
+#include "parser.h"
+#include "token.h"
 #include <cstddef>
 #include <string>
 #include <variant>
 #include <vector>
+#include <utility>
 
 using tree::BinaryOp;
 using tree::DiagnosticEngine;

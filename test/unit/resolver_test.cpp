@@ -1,10 +1,10 @@
-#include "ast.hpp"
-#include "diagnostic.hpp"
-#include "framework.hpp"
-#include "lexer.hpp"
-#include "parser.hpp"
-#include "resolver.hpp"
-#include "token.hpp"
+#include "ast.h"
+#include "diagnostic.h"
+#include "framework.h"
+#include "lexer.h"
+#include "parser.h"
+#include "resolver.h"
+#include "token.h"
 #include <cstddef>
 #include <functional>
 #include <optional>
@@ -205,7 +205,6 @@ TEST(one_directional_dependency_lands_in_separate_groups) {
   CHECK(select_id.has_value());
   if (!filter_id || !select_id)
     return;
-  const bool same_group = false;
   size_t select_group_idx = SIZE_MAX;
   size_t filter_group_idx = SIZE_MAX;
   for (size_t i = 0; i < r.res.binding_groups.size(); ++i) {

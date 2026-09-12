@@ -1,11 +1,11 @@
-#include "cli.hpp"
-#include "diagnostic.hpp"
-#include "lexer.hpp"
-#include "parser.hpp"
-#include "token.hpp"
-#include "tree/config.hpp"
+#include "cli.h"
+#include "diagnostic.h"
+#include "lexer.h"
+#include "parser.h"
+#include "resolver.h"
+#include "token.h"
+#include "tree/config.h"
 #include <CLI/CLI.hpp>
-#include <array>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -22,7 +22,6 @@ using Command = int (*)(CLI::App &);
 
 struct CommandEntry {
   std::string_view name;
-  Command function{};
 };
 
 class TreeFormatter : public CLI::Formatter {
@@ -33,14 +32,24 @@ public:
                         CLI::AppFormatMode /*mode*/) const override {
     std::ostringstream out;
 
-    out << "usage: " << app->get_name() << " <command>\n\n";
-    out << app->get_description() << "\n\n";
+    if (app->get_parent() != nullptr) {
+      out << "usage: " << app->get_parent()->get_name() << ' '
+          << app->get_name() << '\n';
+      if (!app->get_description().empty()) {
+        out << '\n' << app->get_description() << '\n';
+      }
+      return out.str();
+    }
 
-    out << "Commands:\n"
+    out << "usage: " << app->get_name() << " [option] ... [ file ] [arg] ...\n";
+    out << "Options:\n"
         << "  help       show this help message\n"
         << "  version    show version information\n"
         << "  lsp        start the language server\n"
-        << "  <file>     compile a Tree source file\n";
+        << "  <file>     run a Tree source file\n\n\n";
+    out << "Arguments:\n"
+        << "  file   : program read from script file\n"
+        << "  arg ...: arguments passed to program in argv[1:]\n";
 
     return out.str();
   }
@@ -59,13 +68,14 @@ std::string read_file(const std::filesystem::path &path) {
   return stream.str();
 }
 
-int compile_file(const std::filesystem::path &path) {
+int run_file(const std::filesystem::path &path) {
   const std::string source = read_file(path);
 
   tree::DiagnosticEngine diagnostics(path.string(), source);
 
   const auto tokens = tree::lexer(source, diagnostics);
-  [[maybe_unused]] const auto ast = tree::parse(tokens, diagnostics);
+  const auto ast = tree::parse(tokens, diagnostics);
+  [[maybe_unused]] const auto resolved = tree::resolve(ast, diagnostics);
 
   if (diagnostics.has_errors()) {
     diagnostics.print_all(std::cerr);
@@ -75,49 +85,77 @@ int compile_file(const std::filesystem::path &path) {
   return 0;
 }
 
-int run_help(CLI::App &app) {
-  std::cout << app.help();
-  return 0;
+int run_help(CLI::App &app, const std::string &topic) {
+  if (topic.empty()) {
+    std::cout << app.get_formatter()->make_help(&app, app.get_name(),
+                                                CLI::AppFormatMode::Normal);
+    return 0;
+  }
+
+  if (auto *sub = app.get_subcommand(topic)) {
+    std::cout << sub->get_formatter()->make_help(sub, sub->get_name(),
+                                                 CLI::AppFormatMode::Normal);
+    return 0;
+  }
+
+  std::cerr << "unknown command: " << topic << '\n';
+  return 1;
 }
 
 int run_version(CLI::App & /*unused*/) {
-  std::cout << "tree " << tree::config::VERSION << '\n';
+  std::cout << "Tree " << tree::config::VERSION << '\n';
   return 0;
 }
 
 int run_lsp(CLI::App & /*unused*/) { return 0; }
-
-constexpr std::array<CommandEntry, 3> COMMANDS = {{
-    {.name = "help", .function = run_help},
-    {.name = "version", .function = run_version},
-    {.name = "lsp", .function = run_lsp},
-}};
-
 } // namespace
 
 namespace tree {
 
 int run(int argc, char **argv) {
-  CLI::App app{"The Tree Programming Language"};
-
+  CLI::App app{};
+  app.name(std::filesystem::path(argv[0]).filename().string());
   app.formatter(std::make_shared<TreeFormatter>());
 
-  for (const auto &[name, function] : COMMANDS) {
-    auto *command = app.add_subcommand(std::string{name});
-    command->callback([&app, function] { function(app); });
-  }
+  std::string help_topic;
+  auto *help_cmd = app.add_subcommand("help", "show this help message");
+  help_cmd->add_option("topic", help_topic, "command to show help for");
+
+  int result = 0;
+  bool ran_subcommand = false;
+
+  help_cmd->callback([&app, &help_topic, &result, &ran_subcommand] {
+    ran_subcommand = true;
+    result = run_help(app, help_topic);
+  });
+
+  auto *version_cmd = app.add_subcommand("version");
+  version_cmd->callback([&app, &result, &ran_subcommand] {
+    ran_subcommand = true;
+    result = run_version(app);
+  });
+
+  auto *lsp_cmd = app.add_subcommand("lsp");
+  lsp_cmd->callback([&app, &result, &ran_subcommand] {
+    ran_subcommand = true;
+    result = run_lsp(app);
+  });
 
   std::filesystem::path input;
-
   app.add_option("file", input, "Tree source file")->check(CLI::ExistingFile);
 
   CLI11_PARSE(app, argc, argv);
 
-  if (!input.empty()) {
-    return compile_file(input);
+  if (ran_subcommand) {
+    return result;
   }
 
-  std::cerr << app.help();
+  if (!input.empty()) {
+    return run_file(input);
+  }
+
+  std::cerr << app.get_formatter()->make_help(&app, app.get_name(),
+                                              CLI::AppFormatMode::Normal);
   return 1;
 }
 

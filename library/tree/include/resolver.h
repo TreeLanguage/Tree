@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ast.hpp"
-#include "diagnostic.hpp"
+#include "ast.h"
+#include "diagnostic.h"
 #include <cstdint>
 #include <string>
 #include <unordered_map>

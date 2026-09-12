@@ -22,8 +22,8 @@ if(ENABLE_ASAN)
 endif()
 
 configure_file(
-    "${CMAKE_SOURCE_DIR}/include/tree/config.hpp.in"
-    "${TREE_CONFIG_DIR}/tree/config.hpp"
+    "${CMAKE_SOURCE_DIR}/include/tree/config.h.in"
+    "${TREE_CONFIG_DIR}/tree/config.h"
     @ONLY
 )
 
