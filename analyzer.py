@@ -52,12 +52,11 @@ if TOOLS["clang-tidy"]:
     with open(ROOT / "clang-report.txt", "w") as f:
         run(
             "run-clang-tidy",
-            "-p",
-            str(BUILD),
+            "-p", str(BUILD),
             f"-j{os.cpu_count()}",
-            r"app/.*\.cpp",
-            r"library/tree/src/.*\.cpp",
-            r"test/.*\.cpp",
+            r"^(?!.*build/_deps).*app/.*\.cpp$",
+            r"^(?!.*build/_deps).*library/tree/src/.*\.cpp$",
+            r"^(?!.*build/_deps).*test/.*\.cpp$",
             out=f,
             check=False,
         )
@@ -73,6 +72,7 @@ if TOOLS["cppcheck"]:
             "--check-level=exhaustive",
             "--suppress=unusedFunction",
             "--suppress=missingIncludeSystem",
+            "-i", str(BUILD / "_deps"),
             out=f,
             check=False,
         )
@@ -80,6 +80,8 @@ if TOOLS["cppcheck"]:
 if TOOLS["iwyu"]:
     with open(COMPDB) as f, open(ROOT / "iwyu-report.txt", "w") as log:
         for e in json.load(f):
+            if "build/_deps" in e["file"]:
+                continue
             if not any(x in e["file"] for x in ("app/", "library/tree/src/")):
                 continue
 

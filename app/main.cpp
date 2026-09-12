@@ -1,1 +1,3 @@
-int main() { return 0; }
+#include "cli.hpp"
+
+int main(int argc, char **argv) { tree::run(argc, argv); }
