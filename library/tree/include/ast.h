@@ -1,6 +1,5 @@
 #pragma once
 
-#include "span.h"
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -9,188 +8,230 @@
 #include <variant>
 #include <vector>
 
+#include "span.h"
+
 namespace tree {
 
 struct PatternId {
-  uint32_t index = UINT32_MAX;
-  [[nodiscard]] bool valid() const { return index != UINT32_MAX; }
-  friend bool operator==(PatternId, PatternId) = default;
+    uint32_t index = UINT32_MAX;
+
+    [[nodiscard]] bool valid() const {
+        return index != UINT32_MAX;
+    }
+
+    friend bool operator==(PatternId, PatternId) = default;
 };
 
 struct ExprId {
-  uint32_t index = UINT32_MAX;
-  [[nodiscard]] bool valid() const { return index != UINT32_MAX; }
-  friend bool operator==(ExprId, ExprId) = default;
+    uint32_t index = UINT32_MAX;
+
+    [[nodiscard]] bool valid() const {
+        return index != UINT32_MAX;
+    }
+
+    friend bool operator==(ExprId, ExprId) = default;
 };
 
 struct WildcardPattern {};
 
 struct VarPattern {
-  std::string name;
+    std::string name;
 };
 
 struct FloatPattern {
-  double value;
+    double value;
 };
 
 struct StringPattern {
-  std::string value;
+    std::string value;
 };
 
 struct BoolPattern {
-  bool value;
+    bool value;
 };
 
 struct TuplePatternField {
-  std::optional<std::string> name;
-  PatternId pattern;
+    std::optional<std::string> name;
+    PatternId pattern;
 };
 
 struct TuplePattern {
-  std::vector<TuplePatternField> fields;
+    std::vector<TuplePatternField> fields;
 };
 
 struct Pattern {
-  std::variant<WildcardPattern, VarPattern, FloatPattern, StringPattern,
-               BoolPattern, TuplePattern>
-      value;
-  Span span;
+    std::
+        variant<WildcardPattern, VarPattern, FloatPattern, StringPattern, BoolPattern, TuplePattern>
+            value;
+    Span span;
 
-  template <typename T, typename... Args>
-  Pattern(std::in_place_type_t<T> /*unused*/, Span new_span, Args &&...args)
-      : value(std::in_place_type<T>, std::forward<Args>(args)...),
-        span(new_span) {}
+    template <typename T, typename... Args>
+    Pattern(std::in_place_type_t<T> /*unused*/, Span new_span, Args&&... args)
+        : value(std::in_place_type<T>, std::forward<Args>(args)...)
+        , span(new_span) {}
 };
 
 struct FloatLiteral {
-  double value;
+    double value;
 };
 
 struct StringLiteral {
-  std::string value;
+    std::string value;
 };
 
 struct BoolLiteral {
-  bool value;
+    bool value;
 };
 
 struct Identifier {
-  std::string name;
+    std::string name;
 };
 
 struct TupleExprField {
-  std::optional<std::string> name;
-  ExprId value;
+    std::optional<std::string> name;
+    ExprId value;
 };
 
 struct TupleExpr {
-  std::vector<TupleExprField> fields;
+    std::vector<TupleExprField> fields;
 };
 
 struct Call {
-  ExprId callee;
-  ExprId arg;
+    ExprId callee;
+    ExprId arg;
 };
 
-enum class BinaryOp : uint8_t { Add, Sub, Mul, Div, Mod, Equal, LessThan };
+enum class BinaryOp : uint8_t {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Equal,
+    LessThan
+};
 
 struct BinaryExpr {
-  BinaryOp op{};
-  ExprId lhs;
-  ExprId rhs;
+    BinaryOp op{};
+    ExprId lhs;
+    ExprId rhs;
 };
 
 struct Lambda {
-  std::optional<std::string> name;
-  PatternId param;
-  ExprId body;
+    std::optional<std::string> name;
+    PatternId param;
+    ExprId body;
 };
 
 struct LambdaClause {
-  PatternId param;
-  ExprId body;
+    PatternId param;
+    ExprId body;
 };
 
 struct MultiClauseLambda {
-  std::optional<std::string> name;
-  std::vector<LambdaClause> clauses;
+    std::optional<std::string> name;
+    std::vector<LambdaClause> clauses;
 };
 
 struct Binding {
-  PatternId target;
-  ExprId value;
+    PatternId target;
+    ExprId value;
 };
 
 struct Expr {
-  std::variant<FloatLiteral, StringLiteral, BoolLiteral, Identifier, TupleExpr,
-               Call, BinaryExpr, Lambda, Binding, MultiClauseLambda>
-      value;
-  Span span;
+    std::variant<FloatLiteral,
+                 StringLiteral,
+                 BoolLiteral,
+                 Identifier,
+                 TupleExpr,
+                 Call,
+                 BinaryExpr,
+                 Lambda,
+                 Binding,
+                 MultiClauseLambda>
+        value;
+    Span span;
 
-  template <typename T, typename... Args>
-  Expr(std::in_place_type_t<T> /*unused*/, Span new_span, Args &&...args)
-      : value(std::in_place_type<T>, std::forward<Args>(args)...),
-        span(new_span) {}
+    template <typename T, typename... Args>
+    Expr(std::in_place_type_t<T> /*unused*/, Span new_span, Args&&... args)
+        : value(std::in_place_type<T>, std::forward<Args>(args)...)
+        , span(new_span) {}
 };
 
 class Arena {
 public:
-  template <typename T, typename... Args>
-  ExprId make_expr(Span span, Args &&...args) {
-    exprs_.emplace_back(std::in_place_type<T>, span,
-                        std::forward<Args>(args)...);
-    return ExprId{static_cast<uint32_t>(exprs_.size() - 1)};
-  }
+    template <typename T, typename... Args>
+    ExprId make_expr(Span span, Args&&... args) {
+        exprs_.emplace_back(std::in_place_type<T>, span, std::forward<Args>(args)...);
 
-  template <typename T, typename... Args>
-  PatternId make_pattern(Span span, Args &&...args) {
-    patterns_.emplace_back(std::in_place_type<T>, span,
-                           std::forward<Args>(args)...);
-    return PatternId{static_cast<uint32_t>(patterns_.size() - 1)};
-  }
+        return ExprId{static_cast<uint32_t>(exprs_.size() - 1)};
+    }
 
-  [[nodiscard]] Expr &get(ExprId id) { return exprs_[id.index]; }
-  [[nodiscard]] const Expr &get(ExprId id) const { return exprs_[id.index]; }
-  [[nodiscard]] Pattern &get(PatternId id) { return patterns_[id.index]; }
-  [[nodiscard]] const Pattern &get(PatternId id) const {
-    return patterns_[id.index];
-  }
+    template <typename T, typename... Args>
+    PatternId make_pattern(Span span, Args&&... args) {
+        patterns_.emplace_back(std::in_place_type<T>, span, std::forward<Args>(args)...);
 
-  [[nodiscard]] size_t expr_count() const { return exprs_.size(); }
-  [[nodiscard]] size_t pattern_count() const { return patterns_.size(); }
+        return PatternId{static_cast<uint32_t>(patterns_.size() - 1)};
+    }
 
-  void reserve(size_t expr_hint, size_t pattern_hint) {
-    exprs_.reserve(expr_hint);
-    patterns_.reserve(pattern_hint);
-  }
+    [[nodiscard]] Expr& get(ExprId id) {
+        return exprs_[id.index];
+    }
 
-  ExprId clone(const Arena &src, ExprId id);
-  PatternId clone(const Arena &src, PatternId id);
+    [[nodiscard]] const Expr& get(ExprId id) const {
+        return exprs_[id.index];
+    }
+
+    [[nodiscard]] Pattern& get(PatternId id) {
+        return patterns_[id.index];
+    }
+
+    [[nodiscard]] const Pattern& get(PatternId id) const {
+        return patterns_[id.index];
+    }
+
+    [[nodiscard]] size_t expr_count() const {
+        return exprs_.size();
+    }
+
+    [[nodiscard]] size_t pattern_count() const {
+        return patterns_.size();
+    }
+
+    void reserve(size_t expr_hint, size_t pattern_hint) {
+        exprs_.reserve(expr_hint);
+        patterns_.reserve(pattern_hint);
+    }
+
+    ExprId clone(const Arena& src, ExprId id);
+    PatternId clone(const Arena& src, PatternId id);
 
 private:
-  std::vector<Expr> exprs_;
-  std::vector<Pattern> patterns_;
+    std::vector<Expr> exprs_;
+    std::vector<Pattern> patterns_;
 };
 
 struct Program {
-  Arena arena;
-  std::vector<ExprId> exprs;
+    Arena arena;
+    std::vector<ExprId> exprs;
 };
 
-Program clone(const Program &prog);
-std::string to_string(const Arena &arena, ExprId id);
-std::string to_string(const Arena &arena, PatternId id);
-std::string to_string(const Program &prog);
+Program clone(const Program& prog);
+std::string to_string(const Arena& arena, ExprId id);
+std::string to_string(const Arena& arena, PatternId id);
+std::string to_string(const Program& prog);
 
-template <typename... Fs> struct Overloaded : Fs... {
-  using Fs::operator()...;
+template <typename... Fs>
+struct Overloaded : Fs... {
+    using Fs::operator()...;
 };
-template <typename... Fs> Overloaded(Fs...) -> Overloaded<Fs...>;
+
+template <typename... Fs>
+Overloaded(Fs...) -> Overloaded<Fs...>;
 
 template <typename Variant, typename... Fs>
-decltype(auto) match(Variant &&v, Fs &&...fs) {
-  return std::visit(Overloaded{std::forward<Fs>(fs)...},
-                    std::forward<Variant>(v));
+decltype(auto) match(Variant&& v, Fs&&... fs) {
+    return std::visit(Overloaded{std::forward<Fs>(fs)...}, std::forward<Variant>(v));
 }
 
-} // namespace tree
+}  // namespace tree

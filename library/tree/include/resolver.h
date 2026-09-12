@@ -1,45 +1,51 @@
 #pragma once
 
-#include "ast.h"
-#include "diagnostic.h"
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "ast.h"
+#include "diagnostic.h"
+
 namespace tree {
 
 struct BindingId {
-  uint32_t index = UINT32_MAX;
-  [[nodiscard]] bool valid() const { return index != UINT32_MAX; }
-  friend bool operator==(BindingId, BindingId) = default;
+    uint32_t index = std::numeric_limits<uint32_t>::max();
+
+    [[nodiscard]] constexpr bool valid() const noexcept {
+        return index != std::numeric_limits<uint32_t>::max();
+    }
+
+    friend constexpr bool operator==(BindingId, BindingId) = default;
 };
 
 enum class BindingKind : uint8_t {
-  TopLevelValue,
-  TopLevelFn,
-  Local,
+    TopLevelValue,
+    TopLevelFn,
+    Local,
 };
 
 struct BindingInfo {
-  BindingKind kind{};
-  std::string name;
-  Span span;
-  ExprId top_level_expr;
+    BindingKind kind{};
+    std::string name;
+    Span span;
+    ExprId top_level_expr;
 };
 
 struct Resolution {
-  std::unordered_map<uint32_t, BindingId> identifier_binding;
-  std::unordered_map<uint32_t, BindingId> pattern_binding;
-  std::vector<BindingInfo> bindings;
-  std::unordered_map<uint32_t, std::vector<BindingId>> top_level_deps;
-  std::vector<std::vector<BindingId>> binding_groups;
+    std::unordered_map<uint32_t, BindingId> identifier_binding;
+    std::unordered_map<uint32_t, BindingId> pattern_binding;
+    std::vector<BindingInfo> bindings;
+    std::unordered_map<uint32_t, std::vector<BindingId>> top_level_deps;
+    std::vector<std::vector<BindingId>> binding_groups;
 
-  [[nodiscard]] const BindingInfo &get(BindingId id) const {
-    return bindings[id.index];
-  }
+    [[nodiscard]] const BindingInfo& get(BindingId id) const {
+        return bindings.at(id.index);
+    }
 };
 
-Resolution resolve(const Program &prog, DiagnosticEngine &diag);
+Resolution resolve(const Program& program, DiagnosticEngine& diag);
 
-} // namespace tree
+}  // namespace tree

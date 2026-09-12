@@ -1,0 +1,106 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+Standard: c++20
+
+# 4-space indentation for Tree's deeply nested parser/resolver code.
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+
+ColumnLimit: 100
+
+# Braces
+BreakBeforeBraces: Attach
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Empty
+AllowShortLoopsOnASingleLine: false
+
+# Indentation
+IndentCaseLabels: true
+IndentGotoLabels: true
+IndentPPDirectives: None
+IndentWrappedFunctionNames: false
+NamespaceIndentation: None
+SeparateDefinitionBlocks: Always
+
+# Spaces
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpacesInAngles: false
+SpaceBeforeParens: ControlStatements
+SpaceBeforeAssignmentOperators: true
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeRangeBasedForLoopColon: true
+
+# Pointers / references
+DerivePointerAlignment: false
+PointerAlignment: Left
+ReferenceAlignment: Pointer
+
+# Line breaking
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeComma
+AlignAfterOpenBracket: Align
+AlignOperands: Align
+AlignTrailingComments: true
+BinPackArguments: false
+BinPackParameters: false
+
+# Functions / calls
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
+# Constructors / initializers
+PackConstructorInitializers: Never
+ConstructorInitializerIndentWidth: 4
+
+# Includes
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<[^/]+>$'
+    Priority: 1
+    SortPriority: 1
+    CaseSensitive: true
+  - Regex: '^"'
+    Priority: 2
+    SortPriority: 2
+    CaseSensitive: true
+  - Regex: '.*'
+    Priority: 3
+    SortPriority: 3
+    CaseSensitive: true
+
+# Comments
+ReflowComments: true
+FixNamespaceComments: true
+
+# Empty lines
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false
+KeepEmptyLinesAtEOF: false
+
+# Qualifiers / C++
+QualifierAlignment: Leave
+Cpp11BracedListStyle: true
+LambdaBodyIndentation: Signature
+
+# Access specifiers
+AccessModifierOffset: -4
+EmptyLineBeforeAccessModifier: LogicalBlock
+EmptyLineAfterAccessModifier: Never
+
+# Line endings
+DeriveLineEnding: true
+UseCRLF: false

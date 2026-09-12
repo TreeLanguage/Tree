@@ -1,40 +1,42 @@
 #pragma once
 
-#include "span.h"
 #include <cstdint>
 #include <string>
 #include <string_view>
 
+#include "span.h"
+
 namespace tree {
+
 enum class TokenType : uint8_t {
-  Float,
-  String,
-  Bool,
-  Identifier,
-  LeftParen,
-  RightParen,
-  Comma,
-  Colon,
-  Assign,
-  Equal,
-  LessThan,
-  Backslash,
-  Plus,
-  Minus,
-  Star,
-  Slash,
-  Percent,
-  Arrow,
-  Eof
+    Float,
+    String,
+    Bool,
+    Identifier,
+    LeftParen,
+    RightParen,
+    Comma,
+    Colon,
+    Assign,
+    Equal,
+    LessThan,
+    Backslash,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Arrow,
+    Eof
 };
 
 struct Token {
-  TokenType type{};
-  Span span;
-
-  double float_value = 0.0;
-  std::string string_value;
+    TokenType type{};
+    Span span;
+    double float_value = 0.0;
+    std::string string_value;
 };
 
 std::string_view to_string(TokenType type) noexcept;
-} // namespace tree
+
+}  // namespace tree
